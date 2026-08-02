@@ -1813,9 +1813,11 @@
     for (const sect of document.querySelectorAll(".sect")) {
       const head = sect.querySelector(":scope > .t");
       if (!head) continue;
-      const key = head.textContent.trim();
+      const icon = head.querySelector(".material-symbols-outlined");
+      const key = [...head.childNodes].filter((n) => n !== icon).map((n) => n.textContent).join("").trim();
       head.setAttribute("role", "button");
       head.setAttribute("tabindex", "0");
+      head.setAttribute("aria-label", key);
       const sync = () => {
         sect.classList.toggle("collapsed", !!sectState[key]);
         head.setAttribute("aria-expanded", sectState[key] ? "false" : "true");
@@ -1832,6 +1834,7 @@
       sync();
     }
 
+    // The effect pickers are populated from the engine's own tables, so a new
     // entrance in textsvg.js shows up here without touching this file.
     const optionsOf = (list) => list.map((e) => `<option value="${e.id}">${esc(e.label)}</option>`).join("");
     $("fFx").innerHTML = optionsOf(ENTRANCES);
