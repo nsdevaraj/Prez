@@ -29,12 +29,16 @@
      presented. While editing (not playing) every slide is drawn at rest, since
      that is the view you compose in.
 
-     Both exports are the same drawing:
+     Every export is the same drawing:
        · Download .svg  — the whole canvas, every slide at rest, one vector file.
        · Download .lax  — a LittleA scene whose camera move is ordinary
                           <mx:Keyframe> rows on a world <mx:Sprite> wrapping one
                           mxmlParts() fragment per slide. Run it through
                           `la export` for a deterministic MP4 of the show.
+       · Quick .webm    — the same canvas painted offscreen at project resolution
+                          and recorded live by the browser: a video to send round
+                          in the time it takes to watch it, when a deterministic
+                          render is more than the moment needs.
 
      Styling is via the vendored Tailwind + fonts under ../vendor; the app logic
      imports the shared editor modules (../js/util.js, ../js/chrome.js), so serve
@@ -408,6 +412,9 @@
             <span class="material-symbols-outlined text-[14px]">rectangle</span> Download slides (.pptx)</button>
           <button id="btnLax" class="w-full mt-1 py-1.5 bg-primary text-on-primary rounded text-label-xs hover:opacity-90 flex items-center justify-center gap-2">
             <span class="material-symbols-outlined text-[14px]">movie</span> Download show (.lax)</button>
+          <button id="btnWebm" class="w-full mt-1 py-1.5 bg-surface-variant rounded border border-outline-variant hover:bg-surface-container-highest text-label-xs text-on-surface flex items-center justify-center gap-2"
+            title="Record the show in this browser, in real time — a quick .webm to send round. Click again to stop early.">
+            <span class="material-symbols-outlined text-[14px]">videocam</span> Quick record (.webm)</button>
           <pre id="cmd" class="mt-2 bg-surface-container-lowest border border-outline-variant rounded p-2 text-[10px] font-mono text-on-surface-variant whitespace-pre-wrap break-words"></pre>
         </div>
       </div>
@@ -457,7 +464,12 @@
     let hoverFrame = false;
     let steps = [], totalF = 1;           // the timeline, recomputed by retime()
 
-    const cv = $("stage"), ctx = cv.getContext("2d");
+    // `ctx` is a binding rather than a constant because the quick .webm export
+    // paints the very same drawing code into an offscreen canvas: swapping the
+    // destination for the duration of a frame is what keeps the recording and
+    // the preview one renderer instead of two that can drift apart.
+    const cv = $("stage");
+    let ctx = cv.getContext("2d");
     const SAMPLE = "# New slide\n- Point: supporting detail\n- Another point";
 
     const status = (m) => { $("statusText").textContent = m; };
@@ -853,6 +865,7 @@
 
     // ---- transport ----------------------------------------------------------
     function play(to = -1) {
+      if (recording) { status("recording — click Stop recording first"); return; }
       if (!slides.length) { status("add a slide first"); return; }
       // A field or a picker floating over the deck is chrome the audience
       // should never see, so presenting steps out of whatever was open.
@@ -1748,6 +1761,118 @@
         + (skipped ? ` · ${skipped} skipped (no diagram)` : "")
         + (art ? ` · ${art} generated backdrop${art === 1 ? "" : "s"} left out (they export with the .svg)` : ""));
     }
+    /**
+     * A quick .webm, recorded in this browser.
+     *
+     * `la export` is the deterministic render: it walks the .lax frame by frame
+     * and owes nothing to wall-clock time. This is the other thing — the show as
+     * the machine can actually play it, captured in real time so a deck can be
+     * sent round in the seconds it takes to watch it. The frames are painted by
+     * drawSlide() into an offscreen canvas at the project's own resolution, so
+     * what is recorded is the composition rather than a screenshot of the editor:
+     * no letterbox, no chrome, no dependence on the window's size.
+     */
+    let recording = null;
+
+    // Paint one show frame into an arbitrary context at W×H. The camera maths is
+    // render()'s, minus the editor's letterbox: here the canvas IS the frame.
+    function paintShow(c, W, H, frame) {
+      const prev = ctx;
+      ctx = c;
+      try {
+        const k = W / projW, cm = camAt(frame);
+        ctx.setTransform(1, 0, 0, 1, 0, 0);
+        ctx.fillStyle = $("pPaper").value || "#051424";
+        ctx.fillRect(0, 0, W, H);
+        ctx.save();
+        ctx.scale(k, k);
+        ctx.translate(projW / 2, projH / 2);
+        ctx.scale(cm.k, cm.k);
+        ctx.translate(-cm.x, -cm.y);
+        for (const s of slides) drawSlide(s, frame);
+        ctx.restore();
+      } finally { ctx = prev; }
+    }
+
+    const WEBM_TYPES = ["video/webm;codecs=vp9", "video/webm;codecs=vp8", "video/webm"];
+
+    async function saveWebm() {
+      if (recording) { recording.stop(); return; }
+      if (!slides.length) { status("nothing to export yet"); return; }
+      if (typeof MediaRecorder === "undefined") {
+        status("this browser cannot record — use the .lax and `la export` for mp4"); return;
+      }
+      const mime = WEBM_TYPES.find((t) => MediaRecorder.isTypeSupported?.(t));
+      if (!mime) { status("this browser has no webm encoder — use the .lax and `la export` for mp4"); return; }
+
+      pause();
+      leaveSlide();
+      // Even numbers: some encoders reject odd dimensions outright.
+      const scale = Math.min(1, 1920 / projW);
+      const W = Math.round(projW * scale / 2) * 2, H = Math.round(projH * scale / 2) * 2;
+      const off = document.createElement("canvas");
+      off.width = W; off.height = H;
+      const octx = off.getContext("2d");
+      // captureStream(0) means "no frames unless I ask": every frame in the file
+      // is one this loop drew, so the encoder never samples a half-painted canvas.
+      const stream = off.captureStream(0);
+      const track = stream.getVideoTracks()[0];
+      const rec = new MediaRecorder(stream, { mimeType: mime, videoBitsPerSecond: 12_000_000 });
+      const chunks = [];
+      rec.ondataavailable = (e) => { if (e.data && e.data.size) chunks.push(e.data); };
+      const flushed = new Promise((res) => { rec.onstop = res; });
+
+      const btn = $("btnWebm");
+      btn.innerHTML = '<span class="material-symbols-outlined text-[14px]">stop_circle</span> Stop recording';
+      recording = { stopped: false, stop() { this.stopped = true; } };
+      scrubbing = true;                       // the preview mirrors it, chrome off
+      rec.start();
+
+      // Paced by the clock, not by the loop: the frame is a function of elapsed
+      // time, so a slow machine drops frames instead of recording the show in
+      // slow motion — the .webm always runs at the length the panel advertises.
+      // A timer rather than rAF, because rAF stops dead the moment the tab is
+      // hidden and a recording that silently never finishes is worse than one
+      // that finishes coarse.
+      const t0 = performance.now();
+      let lastDrawn = -1;
+      await new Promise((resolve) => {
+        const step = () => {
+          const f = Math.min(totalF, (performance.now() - t0) / 1000 * fps);
+          const n = Math.floor(f);
+          if (n !== lastDrawn) {
+            lastDrawn = n;
+            paintShow(octx, W, H, f);
+            track.requestFrame();
+            showFrame = f;
+            Object.assign(cam, camAt(f));
+            syncTransport();
+            render();
+            status(`recording — ${(f / fps).toFixed(1)}s / ${(totalF / fps).toFixed(1)}s · click again to stop`);
+          }
+          if (recording.stopped || f >= totalF) { resolve(); return; }
+          const due = t0 + (n + 1) * 1000 / fps;
+          setTimeout(step, Math.max(0, due - performance.now()));
+        };
+        step();
+      });
+
+      const cut = recording.stopped && lastDrawn < totalF - 1;
+      rec.stop();
+      await flushed;
+      track.stop();
+      recording = null;
+      scrubbing = false;
+      btn.innerHTML = '<span class="material-symbols-outlined text-[14px]">videocam</span> Quick record (.webm)';
+      redraw();
+
+      if (!chunks.length) { status("nothing was recorded"); return; }
+      download(projName() + ".webm", new Blob(chunks, { type: "video/webm" }));
+      status(`downloaded ${projName()}.webm — ${W}×${H}, recorded live`
+        + (cut ? ` · stopped early at ${(lastDrawn / fps).toFixed(1)}s` : ` · ${(totalF / fps).toFixed(1)}s`)
+        + " · use `la export` for a deterministic mp4");
+    }
+
     function goFullscreen() {
       if (document.fullscreenElement) document.exitFullscreen();
       else $("stageWrap").requestFullscreen?.();
@@ -1765,6 +1890,7 @@
         { label: "Download canvas (.svg)", icon: "download", run: saveSvg },
         { label: "Download slides (.pptx)", icon: "rectangle", run: savePptx },
         { label: "Download show (.lax)", icon: "movie", run: saveLax },
+        { label: "Quick record (.webm)", icon: "videocam", run: saveWebm },
         { label: "Copy export command", icon: "content_copy", run: () => { navigator.clipboard?.writeText($("cmd").textContent); status("copied the export command"); } },
       ],
       slide: [
@@ -2008,6 +2134,7 @@
     $("btnSvg").onclick = saveSvg;
     $("btnPptx").onclick = savePptx;
     $("btnLax").onclick = saveLax;
+    $("btnWebm").onclick = saveWebm;
 
     // Scrubbing previews the show, so it samples the same plans and the same
     // camera playback does — the scrubber cannot show a frame the render would
