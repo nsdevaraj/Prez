@@ -193,6 +193,28 @@
     .row > .k { font-size: 11px; color: #bdc8d1; width: 58px; flex: none; }
     .row > select, .row > input[type=text], .row > input:not([type]) { flex: 1; min-width: 0; }
     .hidden { display: none !important; }
+    #assetPickerDlg { position: fixed; inset: 0; z-index: 120; display: grid; place-items: center;
+                      background: rgba(1, 15, 31, .72); backdrop-filter: blur(3px); }
+    #assetPickerDlg.hidden { display: none !important; }
+    #assetPickerPanel { width: min(1080px, 94vw); height: min(88vh, 880px); display: flex; flex-direction: column;
+                        background: #0d1c2d; border: 1px solid #3e484f; border-radius: 10px; overflow: hidden;
+                        box-shadow: 0 24px 70px rgba(0,0,0,.55); }
+    #assetPickerDlg .head { display: flex; align-items: center; gap: 6px; padding: 6px 10px;
+                            border-bottom: 1px solid #3e484f; background: #122131; }
+    #assetPickerDlg .spacer { flex: 1; }
+    #assetPickerDlg .body { flex: 1; min-height: 0; background: #051424; }
+    #assetPickerFrame { width: 100%; height: 100%; border: 0; display: block; background: #051424; }
+    #assetPickerDlg .foot { display: flex; align-items: center; gap: 8px; padding: 8px 10px;
+                            border-top: 1px solid #3e484f; background: #122131; }
+    #assetPickerStatus { flex: 1; min-width: 0; font-size: 10px; color: #bdc8d1; }
+    #assetPickerStatus.err { color: #ffb4ab; }
+    #assetPickerDlg button { font: inherit; font-size: 11px; padding: 4px 12px; cursor: pointer;
+                             border: 1px solid #3e484f; border-radius: 4px; color: #d4e4fa; background: transparent; }
+    #assetPickerDlg button:hover { border-color: #4cc2ff; color: #a1daff; }
+    #assetPickerDlg button.primary { font-weight: 700; color: #00344b; background: #a1daff; border-color: #a1daff; }
+    #assetPickerDlg button.primary:hover { color: #00344b; opacity: .92; }
+    #assetPickerDlg button:disabled { opacity: .4; cursor: not-allowed; }
+    #assetPickerDlg button:disabled:hover { border-color: #3e484f; color: #d4e4fa; }
   </style>
 </head>
 
@@ -233,6 +255,17 @@
         <button id="btnAdd" class="w-full py-1 bg-surface-variant rounded text-label-xs border border-outline-variant hover:border-primary flex items-center justify-center gap-1"
           title="Add a slide — a new frame on the canvas, appended to the path">
           <span class="material-symbols-outlined text-[14px]">add_box</span> Add slide</button>
+        <div class="flex gap-1">
+          <button id="btnAddText" class="flex-1 py-1 bg-surface-variant rounded text-label-xs border border-outline-variant hover:border-primary flex items-center justify-center gap-1"
+            title="Add a simple text element to the selected slide">
+            <span class="material-symbols-outlined text-[13px]">title</span>Text</button>
+          <button id="btnImportSvg" class="flex-1 py-1 bg-surface-variant rounded text-label-xs border border-outline-variant hover:border-primary flex items-center justify-center gap-1"
+            title="Import SVG into the selected slide">
+            <span class="material-symbols-outlined text-[13px]">upload_file</span>SVG</button>
+          <button id="btnImportVideo" class="flex-1 py-1 bg-surface-variant rounded text-label-xs border border-outline-variant hover:border-primary flex items-center justify-center gap-1"
+            title="Import MP4 into the selected slide">
+            <span class="material-symbols-outlined text-[13px]">movie</span>MP4</button>
+        </div>
         <div class="flex gap-1">
           <button id="btnDup" class="flex-1 py-1 bg-surface-variant rounded text-label-xs border border-outline-variant hover:border-primary flex items-center justify-center" title="Duplicate the selected slide">
             <span class="material-symbols-outlined text-[13px]">content_copy</span></button>
@@ -298,12 +331,13 @@
 
         <div id="slideInsp" class="hidden">
           <div class="row"><span class="k">Name</span><input type="text" id="fName" class="num flex-1 text-left"></div>
+          <div class="row"><span class="k">Type</span><span id="fKind" class="font-mono text-[10px] text-primary"></span></div>
 
-          <label class="text-label-xs text-on-surface-variant">Text</label>
+          <label id="fTextLabel" class="text-label-xs text-on-surface-variant">Outline</label>
           <textarea id="fText" rows="8" spellcheck="false" class="num w-full text-left leading-relaxed mt-1"
             style="height:150px;resize:vertical"
             placeholder="# Title&#10;- Point: supporting detail&#10;A -> B -> C&#10;Cloud vs On-prem"></textarea>
-          <p class="text-[9px] text-on-surface-variant leading-relaxed mt-1">
+          <p id="fTextHelp" class="text-[9px] text-on-surface-variant leading-relaxed mt-1">
             <code>#</code> title · <code>-</code>/<code>1.</code> items · indent to nest ·
             <code>Label: detail</code> · <code>A -&gt; B</code> flow · <code>A vs B</code> comparison.
             Plain sentences work too.
@@ -317,14 +351,33 @@
               title="Go back to the structure detected from the text">reset</button>
           </div>
 
-          <div class="sect">
+          <div id="fTextStyleSect" class="sect hidden">
+            <div class="t"><span class="material-symbols-outlined text-[14px] text-primary">format_size</span>Text formatting</div>
+            <div class="row"><span class="k">Size</span><input type="number" id="fTextSize" min="8" step="1" class="num w-16">
+              <span class="k">Align</span><select id="fTextAlign" class="num flex-1 text-left">
+                <option value="left">Left</option><option value="center">Center</option><option value="right">Right</option>
+              </select></div>
+            <div class="row"><span class="k">Color</span><input type="color" id="fTextColor" class="w-8 h-6 bg-transparent border border-outline-variant rounded">
+              <span class="k">Line</span><input type="number" id="fTextLineHeight" min="0.8" max="3" step="0.05" class="num w-16">
+              <span class="text-[9px] text-on-surface-variant">line-height multiple</span></div>
+          </div>
+
+          <div id="fAssetSect" class="sect hidden">
+            <div class="t"><span class="material-symbols-outlined text-[14px] text-primary">inventory_2</span>Imported media</div>
+            <div class="row"><span class="k">Source</span><span id="fAssetInfo" class="flex-1 text-[10px] font-mono text-on-surface-variant truncate"></span></div>
+            <div class="row"><span class="k"></span>
+              <button id="fAssetReplace" class="py-1 px-2 rounded text-[10px] border border-outline-variant hover:border-primary">Replace…</button>
+            </div>
+          </div>
+
+          <div id="fLayoutSect" class="sect">
             <div class="t"><span class="material-symbols-outlined text-[14px] text-primary">label</span>Layout</div>
             <div class="row"><span class="k">Search</span><input id="fPresetSearch" class="num flex-1 text-left" placeholder="venn, risk, 2x2" spellcheck="false" autocomplete="off"></div>
             <div class="row"><span class="k"></span><select id="fPreset" class="num flex-1 text-left"></select></div>
             <div id="fInfo" class="font-mono text-[10px] text-on-surface-variant"></div>
           </div>
 
-          <div class="sect">
+          <div id="fBuildSect" class="sect">
             <div class="t"><span class="material-symbols-outlined text-[14px] text-primary">movie_filter</span>Build — this slide only</div>
             <div class="row"><span class="k">Entrance</span><select id="fFx" class="num flex-1 text-left"></select><select id="fFxDir" class="num w-24 text-left"></select></div>
             <div class="row"><span class="k">Order</span><select id="fSeq" class="num flex-1 text-left"></select>
@@ -344,7 +397,7 @@
               <span class="text-[9px] text-on-surface-variant">seconds on this slide</span></div>
           </div>
 
-          <div class="sect">
+          <div id="fInsideSect" class="sect">
             <div class="t"><span class="material-symbols-outlined text-[14px] text-primary">ads_click</span>Inside the slide</div>
             <p id="pSelHelp" class="text-[9px] text-on-surface-variant leading-relaxed">
               Double-click a slide on the canvas to open it, then click a card or connector to
@@ -421,6 +474,30 @@
     </aside>
   </main>
 
+  <input accept=".svg,image/svg+xml" hidden id="svgFile" type="file">
+  <input accept="video/mp4,.mp4" hidden id="videoFile" type="file">
+
+  <div id="assetPickerDlg" class="hidden" role="dialog" aria-modal="true" aria-label="Import SVG into selected slide">
+    <div id="assetPickerPanel">
+      <div class="head">
+        <span class="material-symbols-outlined text-[16px]">upload_file</span>
+        <b>Import SVG into selected slide</b>
+        <span class="spacer"></span>
+        <button id="assetPickerClose" title="Close (Esc)">✕</button>
+      </div>
+      <div class="body">
+        <iframe id="assetPickerFrame" title="SVG icon picker" src="about:blank"></iframe>
+      </div>
+      <div class="foot">
+        <button id="assetPickerFile" title="Import a local SVG file">Choose SVG file…</button>
+        <span id="assetPickerStatus">Pick an icon in the embedded browser, then import it here.</span>
+        <span class="spacer"></span>
+        <button id="assetPickerImport" class="primary" disabled>Import selected icon</button>
+        <button id="assetPickerCancel">Close</button>
+      </div>
+    </div>
+  </div>
+
   <script type="module">
     import { $, download, uid, clamp, esc, r2 } from "../js/util.js";
     import { mountMenus } from "../js/chrome.js";
@@ -435,6 +512,12 @@
     import { deckToPptx } from "../js/pptx.js";
     import { openBgPanel, bgPanelOpen } from "../js/bgpanel.js";
     import { bgMarkup, bgSummary, drawBg, normalizeBg } from "../js/bgsvg.js";
+
+    const SVG_PICKER_URL = "../html/icon.html?picker=1";
+    const DEFAULT_TEXT_STYLE = { size: 64, color: "#d4e4fa", align: "center", lineHeight: 1.2 };
+    const SLIDE_KIND_LABEL = { diagram: "diagram", text: "text", svg: "svg", video: "mp4 video" };
+    const svgDataUri = (svgText) => "data:image/svg+xml;charset=utf-8," + encodeURIComponent(svgText);
+    const xmlText = (value) => esc(String(value ?? "").replace(/\r\n?/g, "\n")).replace(/\n/g, "&#10;");
 
     // ---- state --------------------------------------------------------------
     //
@@ -463,6 +546,9 @@
     let drag = null;                      // in-flight pointer gesture
     let hoverFrame = false;
     let steps = [], totalF = 1;           // the timeline, recomputed by retime()
+    let assetPickerSelection = null;
+    let assetPickerTarget = null;
+    let videoImportTarget = null;
 
     // `ctx` is a binding rather than a constant because the quick .webm export
     // paints the very same drawing code into an offscreen canvas: swapping the
@@ -475,8 +561,270 @@
     const status = (m) => { $("statusText").textContent = m; };
     const slideOf = (id) => slides.find((s) => s.id === id) || null;
     const selected = () => slideOf(sel);
+    const slideKind = (s) => (s && s.kind) || "diagram";
+    const isDiagramSlide = (s) => slideKind(s) === "diagram";
+    const isTextSlide = (s) => slideKind(s) === "text";
+    const isSvgSlide = (s) => slideKind(s) === "svg";
+    const isVideoSlide = (s) => slideKind(s) === "video";
     const lineColor = () => $("pLine").value || "#94a3b8";
     const projName = () => slugify($("pName").value || "deck") || "deck";
+
+    function fitContent(sw, sh, dx, dy, dw, dh, pad = 28) {
+      const x = dx + pad, y = dy + pad, w = Math.max(1, dw - pad * 2), h = Math.max(1, dh - pad * 2);
+      if (!(sw > 0) || !(sh > 0)) return { x, y, w, h };
+      const k = Math.min(w / sw, h / sh);
+      const fw = sw * k, fh = sh * k;
+      return { x: x + (w - fw) / 2, y: y + (h - fh) / 2, w: fw, h: fh };
+    }
+
+    function textBox(s) {
+      return { x: 36, y: 36, w: Math.max(1, s.w - 72), h: Math.max(1, s.h - 72) };
+    }
+
+    function wrapTextLines(text, maxWidth, font) {
+      const prev = ctx.font;
+      ctx.font = font;
+      const out = [];
+      for (const para of String(text || "").replace(/\r\n?/g, "\n").split("\n")) {
+        if (!para.trim()) { out.push(""); continue; }
+        const words = para.split(/\s+/).filter(Boolean);
+        let line = words.shift() || "";
+        for (const word of words) {
+          const next = line ? `${line} ${word}` : word;
+          if (ctx.measureText(next).width <= maxWidth || !line) line = next;
+          else { out.push(line); line = word; }
+        }
+        out.push(line);
+      }
+      ctx.font = prev;
+      return out.length ? out : [""];
+    }
+
+    function textLayout(s) {
+      const box = textBox(s);
+      const style = { ...DEFAULT_TEXT_STYLE, ...(s.textStyle || {}) };
+      const font = `${Math.round(style.size)}px Inter, sans-serif`;
+      const lines = wrapTextLines(s.text, box.w, font);
+      const lineH = style.size * Math.max(0.8, style.lineHeight || DEFAULT_TEXT_STYLE.lineHeight);
+      return { box, style, font, lines, lineH };
+    }
+
+    const assetKey = (id) => `asset:${id}`;
+    const slideItems = (s) => s.items || (s.items = []);
+    const isAssetSel = (id) => typeof id === "string" && id.startsWith("asset:");
+    const assetIdOf = (id) => isAssetSel(id) ? id.slice(6) : "";
+    const selectedAsset = () => {
+      const s = editedSlide();
+      if (!s || !isAssetSel(sel2)) return null;
+      return slideItems(s).find((it) => it.id === assetIdOf(sel2)) || null;
+    };
+    const assetBox = (it) => ({ x: it.x || 0, y: it.y || 0, w: Math.max(12, it.w || 12), h: Math.max(12, it.h || 12) });
+
+    function defaultAssetRect(s, aspect = 16 / 9, scale = 0.52) {
+      const vw = Math.max(200, (s.view && s.view.vw) || 1600);
+      const vh = Math.max(120, (s.view && s.view.vh) || 900);
+      const w = vw * scale;
+      const h = Math.min(vh * 0.55, w / Math.max(0.2, aspect));
+      return { x: (vw - w) / 2, y: (vh - h) / 2, w, h };
+    }
+
+    function fitAsset(sw, sh, box, pad = 0) {
+      const x = box.x + pad, y = box.y + pad, w = Math.max(1, box.w - pad * 2), h = Math.max(1, box.h - pad * 2);
+      if (!(sw > 0) || !(sh > 0)) return { x, y, w, h };
+      const k = Math.min(w / sw, h / sh);
+      const fw = sw * k, fh = sh * k;
+      return { x: x + (w - fw) / 2, y: y + (h - fh) / 2, w: fw, h: fh };
+    }
+
+    function wrapAssetText(text, maxWidth, font) {
+      const prev = ctx.font;
+      ctx.font = font;
+      const out = [];
+      for (const para of String(text || "").replace(/\r\n?/g, "\n").split("\n")) {
+        if (!para.trim()) { out.push(""); continue; }
+        const words = para.split(/\s+/).filter(Boolean);
+        let line = words.shift() || "";
+        for (const word of words) {
+          const next = line ? `${line} ${word}` : word;
+          if (ctx.measureText(next).width <= maxWidth || !line) line = next;
+          else { out.push(line); line = word; }
+        }
+        out.push(line);
+      }
+      ctx.font = prev;
+      return out.length ? out : [""];
+    }
+
+    function textAssetLayout(it) {
+      const style = { ...DEFAULT_TEXT_STYLE, ...(it.style || {}) };
+      const font = `${Math.round(style.size)}px Inter, sans-serif`;
+      const lines = wrapAssetText(it.text, Math.max(12, it.w - 16), font);
+      const lineH = style.size * Math.max(0.8, style.lineHeight || DEFAULT_TEXT_STYLE.lineHeight);
+      return { style, font, lines, lineH };
+    }
+
+    function drawTextAsset(it) {
+      const { style, font, lines, lineH } = textAssetLayout(it);
+      const box = assetBox(it);
+      ctx.save();
+      ctx.fillStyle = style.color || DEFAULT_TEXT_STYLE.color;
+      ctx.font = font;
+      ctx.textBaseline = "top";
+      ctx.textAlign = style.align || "left";
+      let x = box.x + 8;
+      if (style.align === "center") x = box.x + box.w / 2;
+      else if (style.align === "right") x = box.x + box.w - 8;
+      const totalH = lines.length * lineH;
+      let y = box.y + Math.max(0, (box.h - totalH) / 2);
+      for (const line of lines) {
+        ctx.fillText(line, x, y);
+        y += lineH;
+      }
+      ctx.restore();
+    }
+
+    function drawSvgAsset(it) {
+      if (!it.svgImage || !it.svgImage.complete) return;
+      const box = fitAsset(it.assetW || it.svgImage.naturalWidth || 1, it.assetH || it.svgImage.naturalHeight || 1, assetBox(it));
+      ctx.drawImage(it.svgImage, box.x, box.y, box.w, box.h);
+    }
+
+    function drawVideoAsset(it) {
+      const box = fitAsset(it.assetW || 16, it.assetH || 9, assetBox(it));
+      const el = it.videoEl && it.videoEl.readyState >= 2 ? it.videoEl : null;
+      if (el) { ctx.drawImage(el, box.x, box.y, box.w, box.h); return; }
+      if (it.posterImage && it.posterImage.complete) { ctx.drawImage(it.posterImage, box.x, box.y, box.w, box.h); return; }
+      ctx.save();
+      ctx.fillStyle = "#122131";
+      ctx.fillRect(box.x, box.y, box.w, box.h);
+      ctx.fillStyle = "#d4e4fa";
+      ctx.font = "600 26px Inter, sans-serif";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText(it.videoName || "Video", box.x + box.w / 2, box.y + box.h / 2);
+      ctx.restore();
+    }
+
+    function drawAsset(it) {
+      if (it.kind === "text") drawTextAsset(it);
+      else if (it.kind === "svg") drawSvgAsset(it);
+      else if (it.kind === "video") drawVideoAsset(it);
+    }
+
+    function drawAssetSelection(s, it) {
+      if (!it || editing !== s.id || selectedAsset()?.id !== it.id) return;
+      const box = assetBox(it);
+      const px = 1 / Math.max(1e-6, cam.k * fitRect().fit * slideScale(s));
+      ctx.save();
+      ctx.strokeStyle = "#4cc2ff";
+      ctx.lineWidth = 2 * px;
+      ctx.setLineDash([8 * px, 6 * px]);
+      ctx.strokeRect(box.x, box.y, box.w, box.h);
+      ctx.setLineDash([]);
+      ctx.fillStyle = "#a1daff";
+      for (const [hx, hy] of [[box.x, box.y], [box.x + box.w, box.y], [box.x, box.y + box.h], [box.x + box.w, box.y + box.h]]) {
+        ctx.fillRect(hx - 4 * px, hy - 4 * px, 8 * px, 8 * px);
+      }
+      ctx.restore();
+    }
+
+    function drawSlideItems(s) {
+      for (const it of slideItems(s)) drawAsset(it);
+      const picked = selectedAsset();
+      if (picked) drawAssetSelection(s, picked);
+    }
+
+    function pickAssetHandle(s, lx, ly, tol) {
+      const it = selectedAsset();
+      if (!it) return null;
+      const b = assetBox(it);
+      const corners = [[b.x, b.y], [b.x + b.w, b.y], [b.x, b.y + b.h], [b.x + b.w, b.y + b.h]];
+      for (let i = 0; i < corners.length; i++) {
+        if (Math.abs(lx - corners[i][0]) <= tol && Math.abs(ly - corners[i][1]) <= tol) return i;
+      }
+      return null;
+    }
+
+    function pickAsset(s, lx, ly) {
+      const items = slideItems(s);
+      for (let i = items.length - 1; i >= 0; i--) {
+        const it = items[i], b = assetBox(it);
+        if (lx >= b.x && lx <= b.x + b.w && ly >= b.y && ly <= b.y + b.h) return it;
+      }
+      return null;
+    }
+
+    function loadSvgItem(it, svgText, sourceLabel, s = null) {
+      it.svgText = svgText;
+      it.svgName = sourceLabel;
+      it.svgDataUri = svgDataUri(svgText);
+      it.error = "";
+      const img = new Image();
+      it.svgImage = img;
+      img.onload = () => {
+        it.assetW = img.naturalWidth || 1024;
+        it.assetH = img.naturalHeight || 1024;
+        const fit = fitAsset(it.assetW, it.assetH, assetBox(it));
+        it.w = fit.w;
+        it.h = fit.h;
+        const c = document.createElement("canvas");
+        c.width = Math.max(1, it.assetW);
+        c.height = Math.max(1, it.assetH);
+        c.getContext("2d").drawImage(img, 0, 0, c.width, c.height);
+        it.pngDataUri = c.toDataURL("image/png");
+        if (s) { syncInspector(true); renderSelBar(); }
+        redraw();
+        status(`imported ${sourceLabel}`);
+      };
+      img.onerror = () => { it.error = `could not load ${sourceLabel} as svg`; redraw(); status(it.error); };
+      img.src = it.svgDataUri;
+    }
+
+    function loadVideoItem(it, file, s = null) {
+      it.videoName = file.name;
+      it.videoUrl = URL.createObjectURL(file);
+      it.error = "";
+      const v = document.createElement("video");
+      v.preload = "auto";
+      v.muted = true;
+      v.playsInline = true;
+      v.crossOrigin = "anonymous";
+      it.videoEl = v;
+      v.addEventListener("loadedmetadata", () => {
+        it.videoDuration = v.duration || 0;
+        it.trimIn = 0;
+        it.trimOut = v.duration || 0;
+        it.assetW = v.videoWidth || projW;
+        it.assetH = v.videoHeight || projH;
+        const fit = fitAsset(it.assetW, it.assetH, assetBox(it));
+        it.w = fit.w;
+        it.h = fit.h;
+        if (s && (!s.hold || s.hold === 3)) s.hold = Math.max(0.2, v.duration || 3);
+        const want = clamp(it.trimIn || 0, 0, Math.max(0, (it.videoDuration || 0) - 0.05));
+        const grab = () => {
+          try {
+            const c = document.createElement("canvas");
+            c.width = Math.max(1, v.videoWidth || 320);
+            c.height = Math.max(1, v.videoHeight || 180);
+            c.getContext("2d").drawImage(v, 0, 0, c.width, c.height);
+            it.poster = c.toDataURL("image/png");
+            it.posterImage = new Image();
+            it.posterImage.src = it.poster;
+          } catch {}
+          if (s) syncInspector(true);
+          retime();
+          redraw();
+        };
+        v.addEventListener("seeked", grab, { once: true });
+        try { v.currentTime = want; } catch {}
+        status(`imported ${file.name}`);
+      }, { once: true });
+      v.addEventListener("seeked", redraw);
+      v.addEventListener("error", () => { it.error = `could not load ${file.name} as video`; redraw(); status(it.error); }, { once: true });
+      v.src = it.videoUrl;
+    }
+
+    function selectAsset(id) { selectPart(assetKey(id)); }
 
     // ---- generation ---------------------------------------------------------
 
@@ -490,6 +838,18 @@
     // and centres the diagram in it, so a three-node mind map and a twelve-cell
     // matrix still make frames the camera can fill edge to edge.
     function regen(s) {
+      if (!isDiagramSlide(s)) {
+        s.err = "";
+        s.graph = null;
+        s.structure = "";
+        s.naturalStructure = "";
+        s.forced = false;
+        s.presetId = "";
+        s.view = null;
+        s.plan = null;
+        s.planById = null;
+        return;
+      }
       const opts = {
         preset: s.preset || undefined,
         aspect: `${Math.round(projW)}:${Math.round(projH)}`,
@@ -521,6 +881,172 @@
       s.plan = null;
       // A selection only survives if the thing it named still exists.
       if (s.id === editing && sel2 && !(s.view || { parts: [] }).parts.some((p) => p.id === sel2)) sel2 = null;
+    }
+
+    function mediaVisible(s, frame) {
+      if (frame === null) return true;
+      const win = cardWindow(s);
+      return !!win && frame >= win.on && frame <= win.off;
+    }
+
+    function videoTargetTime(s, frame) {
+      const st = stepOf(s.id);
+      if (!st) return s.trimIn || 0;
+      const clipStart = st.holdStart / fps;
+      const clipSecs = Math.max(0, (frame / fps) - clipStart);
+      const trimIn = s.trimIn || 0;
+      const trimOut = s.trimOut || s.videoDuration || trimIn;
+      const maxT = Math.max(trimIn, trimOut - 0.001);
+      return clamp(trimIn + clipSecs, trimIn, maxT);
+    }
+
+    function captureVideoPoster(s) {
+      const v = s.videoEl;
+      if (!v) return;
+      const want = clamp(s.trimIn || 0, 0, Math.max(0, (s.videoDuration || 0) - 0.05));
+      const grab = () => {
+        try {
+          const c = document.createElement("canvas");
+          c.width = Math.max(1, v.videoWidth || 320);
+          c.height = Math.max(1, v.videoHeight || 180);
+          c.getContext("2d").drawImage(v, 0, 0, c.width, c.height);
+          s.poster = c.toDataURL("image/png");
+          s.posterImage = new Image();
+          s.posterImage.src = s.poster;
+          redraw();
+        } catch { /* no poster this time */ }
+        v.removeEventListener("seeked", grab);
+      };
+      v.addEventListener("seeked", grab);
+      try { v.currentTime = want; } catch { v.removeEventListener("seeked", grab); }
+    }
+
+    function loadSvgAsset(s, svgText, sourceLabel) {
+      s.svgText = svgText;
+      s.svgName = sourceLabel;
+      s.svgDataUri = svgDataUri(svgText);
+      s.err = "";
+      const img = new Image();
+      s.svgImage = img;
+      img.onload = () => {
+        s.assetW = img.naturalWidth || 1024;
+        s.assetH = img.naturalHeight || 1024;
+        const c = document.createElement("canvas");
+        c.width = Math.max(1, s.assetW);
+        c.height = Math.max(1, s.assetH);
+        c.getContext("2d").drawImage(img, 0, 0, c.width, c.height);
+        s.pngDataUri = c.toDataURL("image/png");
+        if (!s.w || !s.h) { s.w = 1200; s.h = 675; }
+        redraw();
+        syncInspector(true);
+        renderPath();
+        status(`imported ${sourceLabel} into "${s.name}"`);
+      };
+      img.onerror = () => {
+        s.err = `could not load ${sourceLabel} as svg`;
+        s.pngDataUri = "";
+        redraw();
+        syncInspector(true);
+        status(s.err);
+      };
+      img.src = s.svgDataUri;
+    }
+
+    function loadVideoAsset(s, file) {
+      if (s.videoEl) {
+        try { s.videoEl.pause(); } catch {}
+        s.videoEl.removeAttribute("src");
+      }
+      s.videoName = file.name;
+      s.videoUrl = URL.createObjectURL(file);
+      s.poster = "";
+      s.err = "";
+      const v = document.createElement("video");
+      v.preload = "auto";
+      v.muted = true;
+      v.playsInline = true;
+      v.crossOrigin = "anonymous";
+      s.videoEl = v;
+      v.addEventListener("loadedmetadata", () => {
+        s.videoDuration = v.duration || 0;
+        s.trimIn = 0;
+        s.trimOut = v.duration || 0;
+        s.assetW = v.videoWidth || projW;
+        s.assetH = v.videoHeight || projH;
+        if (!s.hold || s.hold === 3) s.hold = Math.max(0.2, v.duration || 3);
+        captureVideoPoster(s);
+        retime();
+        renderPath();
+        syncInspector(true);
+        redraw();
+        status(`imported ${file.name} into "${s.name}"`);
+      }, { once: true });
+      v.addEventListener("seeked", redraw);
+      v.addEventListener("error", () => {
+        s.err = `could not load ${file.name} as video`;
+        syncInspector(true);
+        redraw();
+        status(s.err);
+      }, { once: true });
+      v.src = s.videoUrl;
+    }
+
+    function importSvgSlide(svgText, sourceLabel, slideId = null) {
+      const s = slideId ? slideOf(slideId) : selected();
+      if (!s || !s.view) { status("select a slide first"); return; }
+      let it = null;
+      if (assetPickerTarget && typeof assetPickerTarget === "object" && assetPickerTarget.assetId) {
+        it = slideItems(s).find((x) => x.id === assetPickerTarget.assetId) || null;
+      }
+      if (!it) {
+        const box = defaultAssetRect(s, 1, 0.5);
+        it = { id: uid(), kind: "svg", x: box.x, y: box.y, w: box.w, h: box.h, svgText: "", svgDataUri: "", svgImage: null, svgName: "", pngDataUri: "", assetW: 0, assetH: 0, error: "" };
+        slideItems(s).push(it);
+      }
+      loadSvgItem(it, svgText, sourceLabel, s);
+      enterSlide(s.id);
+      selectAsset(it.id);
+      syncInspector(true);
+      redraw();
+    }
+
+    function importVideoSlide(file, slideId = null) {
+      const s = slideId ? slideOf(slideId) : selected();
+      if (!s || !s.view) { status("select a slide first"); return; }
+      let it = null;
+      if (videoImportTarget && typeof videoImportTarget === "object" && videoImportTarget.assetId) {
+        it = slideItems(s).find((x) => x.id === videoImportTarget.assetId) || null;
+      }
+      if (!it) {
+        const box = defaultAssetRect(s, 16 / 9, 0.56);
+        it = { id: uid(), kind: "video", x: box.x, y: box.y, w: box.w, h: box.h, videoName: "", videoUrl: "", videoEl: null, videoDuration: 0, trimIn: 0, trimOut: 0, poster: "", posterImage: null, assetW: 0, assetH: 0, error: "" };
+        slideItems(s).push(it);
+      }
+      loadVideoItem(it, file, s);
+      enterSlide(s.id);
+      selectAsset(it.id);
+      syncInspector(true);
+      redraw();
+    }
+
+    function syncVideoPlayback(frame = showFrame) {
+      for (const s of slides) {
+        for (const it of slideItems(s).filter((x) => x.kind === "video" && x.videoEl && !x.error)) {
+          const visible = mediaVisible(s, frame);
+          const t = videoTargetTime({ ...s, trimIn: it.trimIn, trimOut: it.trimOut, videoDuration: it.videoDuration }, frame);
+          if (!playing || !visible) {
+            try { it.videoEl.pause(); } catch {}
+            if (visible && Number.isFinite(t) && Math.abs((it.videoEl.currentTime || 0) - t) > 0.08) {
+              try { it.videoEl.currentTime = t; } catch {}
+            }
+            continue;
+          }
+          if (Number.isFinite(t) && Math.abs((it.videoEl.currentTime || 0) - t) > 0.2) {
+            try { it.videoEl.currentTime = t; } catch {}
+          }
+          it.videoEl.play().catch(() => {});
+        }
+      }
     }
 
     /**
@@ -669,20 +1195,68 @@
       return { on: st.holdStart, off: s.anim.exit === "none" ? Infinity : st.holdEnd };
     }
 
+    function drawTextSlide(s) {
+      const { box, style, font, lines, lineH } = textLayout(s);
+      ctx.save();
+      ctx.fillStyle = style.color || DEFAULT_TEXT_STYLE.color;
+      ctx.font = font;
+      ctx.textBaseline = "top";
+      const totalH = lines.length * lineH;
+      let x = box.x;
+      let y = box.y + Math.max(0, (box.h - totalH) / 2);
+      ctx.textAlign = style.align || "center";
+      if (style.align === "center") x = box.x + box.w / 2;
+      else if (style.align === "right") x = box.x + box.w;
+      for (const line of lines) {
+        ctx.fillText(line, x, y);
+        y += lineH;
+      }
+      ctx.restore();
+    }
+
+    function drawSvgSlide(s) {
+      if (!s.svgImage || !s.svgImage.complete) return;
+      const box = fitContent(s.assetW || s.svgImage.naturalWidth || 1, s.assetH || s.svgImage.naturalHeight || 1, 0, 0, s.w, s.h);
+      ctx.drawImage(s.svgImage, box.x, box.y, box.w, box.h);
+    }
+
+    function drawVideoSlide(s) {
+      const box = fitContent(s.assetW || 16, s.assetH || 9, 0, 0, s.w, s.h);
+      const el = s.videoEl && s.videoEl.readyState >= 2 ? s.videoEl : null;
+      if (el) {
+        ctx.drawImage(el, box.x, box.y, box.w, box.h);
+        return;
+      }
+      if (s.poster) {
+        if (s.posterImage && s.posterImage.complete) ctx.drawImage(s.posterImage, box.x, box.y, box.w, box.h);
+        return;
+      }
+      ctx.save();
+      ctx.fillStyle = "#122131";
+      ctx.fillRect(box.x, box.y, box.w, box.h);
+      ctx.fillStyle = "#d4e4fa";
+      ctx.font = '600 28px Inter, sans-serif';
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText(s.videoName || "Video", box.x + box.w / 2, box.y + box.h / 2);
+      ctx.restore();
+    }
+
     // Draw one slide's vector parts. With a plan each part moves under its own
     // animation; without one they sit at rest. The anchor maths mirrors
     // la_core::Transform2D — the local point (ax, ay) is pinned to (X, Y) —
     // which is the same maths the Movie Editor's preview and mxmlParts() use.
     function drawSlide(s, frame) {
-      if (!s.view) return;
-      const plan = frame === null ? null : planOf(s);
+      const diagram = isDiagramSlide(s);
+      if (diagram && !s.view) return;
+      const plan = diagram && frame !== null ? planOf(s) : null;
       // A slide the camera has not reached yet must not sit there as a blank
       // white rectangle: that reads as a bug rather than as "not there yet".
       let card = s.bgOn !== false;
-      if (plan) {
-        const win = cardWindow(s);
-        if (win) card = card && frame >= win.on && frame <= win.off;
-      }
+      const visible = mediaVisible(s, frame);
+      if (plan) card = card && visible;
+      else if (!diagram) card = card && visible;
+      if (!diagram && frame !== null && !visible) return;
 
       ctx.save();
       ctx.translate(s.x, s.y);
@@ -695,24 +1269,33 @@
         // has decoded — never a synchronous stall in the middle of a pan.
         if (s.bgArt) drawBg(ctx, s.bgArt, 0, 0, s.w, s.h, () => redraw());
       }
-      ctx.scale(s.w / Math.max(1, s.view.vw), s.h / Math.max(1, s.view.vh));
-      for (const part of s.view.parts) {
-        const planned = plan && s.planById.get(part.id);
-        const smp = planned ? samplePart(planned, frame) : null;
-        if (smp && smp.alpha <= 0.004) continue;
-        const an = (planned && planned.anchor) || { ax: 0.5, ay: 0.5 };
-        const ax = part.x + part.w * an.ax, ay = part.y + part.h * an.ay;
-        ctx.save();
-        if (smp) {
-          ctx.globalAlpha = Math.min(1, smp.alpha);
-          ctx.translate(ax + smp.dx, ay + smp.dy);
-          if (smp.rot) ctx.rotate(smp.rot);
-          if (smp.sx !== 1 || smp.sy !== 1) ctx.scale(smp.sx, smp.sy);
-          ctx.translate(-ax, -ay);
+      if (diagram) {
+        ctx.scale(s.w / Math.max(1, s.view.vw), s.h / Math.max(1, s.view.vh));
+        for (const part of s.view.parts) {
+          const planned = plan && s.planById.get(part.id);
+          const smp = planned ? samplePart(planned, frame) : null;
+          if (smp && smp.alpha <= 0.004) continue;
+          const an = (planned && planned.anchor) || { ax: 0.5, ay: 0.5 };
+          const ax = part.x + part.w * an.ax, ay = part.y + part.h * an.ay;
+          ctx.save();
+          if (smp) {
+            ctx.globalAlpha = Math.min(1, smp.alpha);
+            ctx.translate(ax + smp.dx, ay + smp.dy);
+            if (smp.rot) ctx.rotate(smp.rot);
+            if (smp.sx !== 1 || smp.sy !== 1) ctx.scale(smp.sx, smp.sy);
+            ctx.translate(-ax, -ay);
+          }
+          // A part that cannot draw must never take the whole deck down with it.
+          try { drawPrims(ctx, part.prims, { trim: smp ? smp.trim : 1 }); } catch { /* ignore */ }
+          ctx.restore();
         }
-        // A part that cannot draw must never take the whole deck down with it.
-        try { drawPrims(ctx, part.prims, { trim: smp ? smp.trim : 1 }); } catch { /* ignore */ }
-        ctx.restore();
+        drawSlideItems(s);
+      } else if (isTextSlide(s)) {
+        drawTextSlide(s);
+      } else if (isSvgSlide(s)) {
+        drawSvgSlide(s);
+      } else if (isVideoSlide(s)) {
+        drawVideoSlide(s);
       }
       ctx.restore();
     }
@@ -842,6 +1425,7 @@
         else if (showFrame >= totalF) { showFrame = totalF; pause(); status("end of the deck"); }
         else again = true;
         Object.assign(cam, camAt(showFrame));
+        syncVideoPlayback(showFrame);
         syncTransport();
       } else if (fly) {
         fly.t += dt / fly.dur;
@@ -876,10 +1460,12 @@
       cv.classList.add("presenting");
       $("btnPlay").innerHTML = '<span class="material-symbols-outlined text-[22px]">pause</span>';
       $("btnPlayTop").innerHTML = '<span class="material-symbols-outlined text-[14px]">pause</span>Pause';
+      syncVideoPlayback(showFrame);
       kick();
     }
     function pause() {
       playing = false; stopAt = -1;
+      syncVideoPlayback(showFrame);
       cv.classList.remove("presenting");
       $("btnPlay").innerHTML = '<span class="material-symbols-outlined text-[22px]">play_arrow</span>';
       $("btnPlayTop").innerHTML = '<span class="material-symbols-outlined text-[14px]">play_arrow</span>Present';
@@ -895,7 +1481,7 @@
       select(st.id, false);
       showFrame = st.travelStart;
       if (andPlay) play(st.holdEnd);
-      else { Object.assign(cam, camAt(showFrame)); syncTransport(); redraw(); }
+      else { Object.assign(cam, camAt(showFrame)); syncVideoPlayback(showFrame); syncTransport(); redraw(); }
     }
     function stepBy(d) {
       const st = stepAt(showFrame) || steps[0];
@@ -944,7 +1530,19 @@
       const inner = editedSlide();
       if (inner && inner.view) {
         const l = worldToSlide(inner, w);
-        const hit = hitTestParts(inner.view.parts, l.x, l.y, 6 / Math.max(1e-6, l.k * cam.k * fitRect().fit));
+        const tol = 6 / Math.max(1e-6, l.k * cam.k * fitRect().fit);
+        const assetHandle = pickAssetHandle(inner, l.x, l.y, tol);
+        if (assetHandle !== null) {
+          const it = selectedAsset();
+          if (it) { drag = { kind: "asset-resize", slideId: inner.id, assetId: it.id, h: assetHandle, x0: it.x, y0: it.y, w0: it.w, h0: it.h }; return; }
+        }
+        const pickedAsset = pickAsset(inner, l.x, l.y);
+        if (pickedAsset) {
+          selectAsset(pickedAsset.id);
+          drag = { kind: "asset-move", slideId: inner.id, assetId: pickedAsset.id, ox: pickedAsset.x - l.x, oy: pickedAsset.y - l.y };
+          return;
+        }
+        const hit = hitTestParts(inner.view.parts, l.x, l.y, tol);
         if (hit) { selectPart(hit.id); return; }
         // A click on the slide but off every part clears the selection and
         // stays inside; a click right outside it steps back out.
@@ -985,6 +1583,22 @@
       } else if (drag.kind === "move") {
         const s = slideOf(drag.id);
         if (s) { s.x = Math.round(w.x + drag.ox); s.y = Math.round(w.y + drag.oy); syncFrameFields(); }
+      } else if (drag.kind === "asset-move") {
+        const s = slideOf(drag.slideId), it = s && slideItems(s).find((x) => x.id === drag.assetId);
+        if (s && it) { it.x = w ? Math.round(worldToSlide(s, w).x + drag.ox) : it.x; it.y = Math.round(worldToSlide(s, w).y + drag.oy); }
+      } else if (drag.kind === "asset-resize") {
+        const s = slideOf(drag.slideId), it = s && slideItems(s).find((x) => x.id === drag.assetId);
+        if (s && it) {
+          const l = worldToSlide(s, w);
+          const right = drag.h === 1 || drag.h === 3, bottom = drag.h === 2 || drag.h === 3;
+          const ax = right ? drag.x0 : drag.x0 + drag.w0;
+          const ay = bottom ? drag.y0 : drag.y0 + drag.h0;
+          const nw = Math.max(24, Math.round(right ? l.x - ax : ax - l.x));
+          const nh = Math.max(24, Math.round(bottom ? l.y - ay : ay - l.y));
+          it.w = nw; it.h = nh;
+          it.x = right ? ax : ax - nw;
+          it.y = bottom ? ay : ay - nh;
+        }
       } else if (drag.kind === "resize") {
         const s = slideOf(drag.id);
         if (s) {
@@ -1040,6 +1654,17 @@
       if (inner && inner.view) {
         const l = worldToSlide(inner, w);
         const tol = 6 / Math.max(1e-6, l.k * cam.k * fitRect().fit);
+        const asset = pickAsset(inner, l.x, l.y);
+        if (asset) {
+          selectAsset(asset.id);
+          if (asset.kind === "text") {
+            openTextEditor({
+              kind: "asset-text", id: assetKey(asset.id), assetId: asset.id, text: asset.text,
+              x: asset.x, y: asset.y, w: asset.w, h: asset.h, style: asset.style || DEFAULT_TEXT_STYLE,
+            }, "text");
+          }
+          return;
+        }
         const part = hitTestParts(inner.view.parts, l.x, l.y, tol);
         if (part && part.kind !== "edge") {
           if (part.id !== sel2) selectPart(part.id);
@@ -1067,11 +1692,14 @@
     }
 
     function addSlide(text = SAMPLE, opts = {}) {
+      const kind = opts.kind || "diagram";
       const s = {
         id: uid(),
         name: opts.name || `Slide ${slides.length + 1}`,
-        text,
-        preset: opts.preset || "",
+        kind,
+        text: kind === "diagram" ? text : (opts.text || ""),
+        textStyle: { ...DEFAULT_TEXT_STYLE, ...(opts.textStyle || {}) },
+        preset: kind === "diagram" ? (opts.preset || "") : "",
         bg: "#ffffff", bgOn: true,
         // A generated backdrop, as a spec rather than as markup (see bgsvg.js).
         // Null is "just the flat card", which is what a new slide gets.
@@ -1079,9 +1707,13 @@
         anim: { ...DEFAULT_ANIM, effect: "float", direction: "bottom", sequence: "one", exit: "none" },
         edits: { nodes: {}, edges: {} },   // the direct-manipulation patch
         undo: [],                          // snapshots of `edits`, newest last
+        items: [],
+        svgText: "", svgDataUri: "", svgImage: null, svgName: "",
+        pngDataUri: "", assetW: 0, assetH: 0,
+        videoName: "", videoUrl: "", videoEl: null, videoDuration: 0, trimIn: 0, trimOut: 0, poster: "", posterImage: null,
         x: 0, y: 0, w: 1200, h: 675,
         travel: slides.length === 0 ? 1.4 : 1.2,
-        hold: 3,
+        hold: kind === "text" ? 3 : 3,
       };
       regen(s);
       Object.assign(s, nextSpot(s.w));
@@ -1114,8 +1746,53 @@
       if (!s) return;
       const copy = {
         ...s, id: uid(), name: s.name + " copy", anim: { ...s.anim },
+        textStyle: { ...DEFAULT_TEXT_STYLE, ...(s.textStyle || {}) },
         edits: cloneEdits(s.edits), undo: [], plan: null, planById: null,
+        items: slideItems(s).map((it) => ({
+          ...it,
+          id: uid(),
+          style: it.style ? { ...it.style } : undefined,
+          svgImage: null,
+          videoEl: null,
+          posterImage: null,
+        })),
       };
+      for (const it of copy.items) {
+        if (it.kind === "svg" && it.svgText) loadSvgItem(it, it.svgText, it.svgName || "asset.svg");
+        else if (it.kind === "video" && it.videoUrl) {
+          const v = document.createElement("video");
+          v.preload = "auto"; v.muted = true; v.playsInline = true; v.crossOrigin = "anonymous";
+          it.videoEl = v;
+          v.src = it.videoUrl;
+          v.addEventListener("loadedmetadata", () => {
+            it.videoDuration = v.duration || it.videoDuration || 0;
+            it.assetW = v.videoWidth || it.assetW || projW;
+            it.assetH = v.videoHeight || it.assetH || projH;
+            redraw();
+          }, { once: true });
+          v.addEventListener("seeked", redraw);
+          if (it.poster) { it.posterImage = new Image(); it.posterImage.src = it.poster; }
+        }
+      }
+      if (isSvgSlide(s)) {
+        copy.svgImage = null;
+        loadSvgAsset(copy, s.svgText, s.svgName || `${s.name}.svg`);
+      }
+      if (isVideoSlide(s)) {
+        copy.videoEl = document.createElement("video");
+        copy.videoEl.preload = "auto";
+        copy.videoEl.muted = true;
+        copy.videoEl.playsInline = true;
+        copy.videoEl.crossOrigin = "anonymous";
+        copy.videoEl.src = s.videoUrl;
+        copy.videoEl.addEventListener("loadedmetadata", () => {
+          copy.videoDuration = copy.videoEl.duration || s.videoDuration || 0;
+          copy.assetW = copy.videoEl.videoWidth || s.assetW || projW;
+          copy.assetH = copy.videoEl.videoHeight || s.assetH || projH;
+          redraw();
+        }, { once: true });
+        copy.videoEl.addEventListener("seeked", redraw);
+      }
       regen(copy);
       Object.assign(copy, nextSpot(copy.w));
       slides.splice(slides.indexOf(s) + 1, 0, copy);
@@ -1168,7 +1845,7 @@
     const editedSlide = () => slideOf(editing);
     const selectedPart = () => {
       const s = editedSlide();
-      return (s && s.view && sel2) ? s.view.parts.find((p) => p.id === sel2) || null : null;
+      return (s && s.view && sel2 && !isAssetSel(sel2)) ? s.view.parts.find((p) => p.id === sel2) || null : null;
     };
     const nodeEdit = (s, id) => (s.edits.nodes[id] = s.edits.nodes[id] || {});
     const edgeEditOf = (s, key) => (s.edits.edges[key] = s.edits.edges[key] || {});
@@ -1218,7 +1895,7 @@
       renderSelBar();
       redraw();
       const s = slideOf(id);
-      if (s) status(`opened "${s.name}" — click a card, double-click its text to retype it, Esc to step out`);
+      if (s) status(`opened "${s.name}" — click a card or inserted element to select it, drag to move, corner-drag to resize, double-click text to edit`);
     }
     function leaveSlide() {
       if (!editing) return;
@@ -1245,6 +1922,21 @@
     function openTextEditor(part, field) {
       const s = editedSlide();
       if (!s || !part || !field) return;
+      if (part.kind === "asset-text") {
+        const at = slideToStage(s, part.x, part.y);
+        const el = $("pTextEdit");
+        inlineEdit = { partId: part.id, field, assetId: part.assetId, beforeText: part.text || "", took: false };
+        el.value = part.text || "";
+        el.style.left = `${at.x - 3}px`;
+        el.style.top = `${at.y - 3}px`;
+        el.style.width = `${Math.max(120, part.w * at.s + 24)}px`;
+        el.style.fontSize = `${Math.max(10, (part.style?.size || DEFAULT_TEXT_STYLE.size) * at.s * 0.9)}px`;
+        el.style.lineHeight = "1.4";
+        el.classList.remove("hidden");
+        el.focus();
+        el.select();
+        return;
+      }
       const run = part.prims.find((q) => q.t === "text" && q.field === field);
       const box = run
         ? { x: run.x, y: run.y - run.size * BASELINE, w: Math.max(run.w, 40), h: run.size }
@@ -1274,7 +1966,21 @@
       textSession = null;
       $("pTextEdit").classList.add("hidden");
       const s = editedSlide();
-      if (!keep && ed.took && s) { s.edits = s.undo.pop(); commitEdit(s); return; }
+      if (!keep && ed.took && s) {
+        if (ed.assetId) {
+          const asset = slideItems(s).find((it) => it.id === ed.assetId);
+          if (asset && Object.prototype.hasOwnProperty.call(ed, "beforeText")) {
+            asset.text = ed.beforeText;
+            syncInspector(true);
+            renderSelBar();
+            redraw();
+          }
+          return;
+        }
+        s.edits = s.undo.pop();
+        commitEdit(s);
+        return;
+      }
       if (ed.took) status(`retyped the ${ed.field === "description" ? "detail" : ed.field}`);
     }
 
@@ -1284,6 +1990,16 @@
     function setText(part, field, value) {
       const s = editedSlide();
       if (!s) return;
+      if (part.kind === "asset-text") {
+        const asset = slideItems(s).find((it) => it.id === part.assetId) || null;
+        if (!asset) return;
+        asset.text = value;
+        if (inlineEdit) inlineEdit.took = true;
+        syncInspector(true);
+        renderSelBar();
+        redraw();
+        return;
+      }
       const key = `${part.id}:${field}`;
       if (textSession !== key) {
         pushUndo(s);
@@ -1295,8 +2011,20 @@
       commitEdit(s);
     }
 
+    function inlineEditPart() {
+      const s = editedSlide(), ed = inlineEdit;
+      if (!s || !ed) return null;
+      if (ed.assetId) {
+        const asset = slideItems(s).find((it) => it.id === ed.assetId);
+        return asset && asset.kind === "text"
+          ? { kind: "asset-text", id: assetKey(asset.id), assetId: asset.id, text: asset.text, x: asset.x, y: asset.y, w: asset.w, h: asset.h, style: asset.style || DEFAULT_TEXT_STYLE }
+          : null;
+      }
+      return selectedPart();
+    }
+
     $("pTextEdit").addEventListener("input", () => {
-      const part = selectedPart();
+      const part = inlineEditPart();
       if (part && inlineEdit) setText(part, inlineEdit.field, $("pTextEdit").value);
     });
     $("pTextEdit").addEventListener("keydown", (ev) => {
@@ -1392,10 +2120,27 @@
     // Static markup shown and hidden rather than rebuilt, so a colour picker
     // keeps its focus while it is being dragged.
     function renderSelBar() {
-      const s = editedSlide(), part = selectedPart();
-      $("pSelBody").classList.toggle("hidden", !s);
-      $("pSelHelp").classList.toggle("hidden", !!s);
-      if (!s) return;
+      const s = editedSlide(), part = selectedPart(), asset = selectedAsset();
+      const active = !!s;
+      $("pSelBody").classList.toggle("hidden", !active);
+      $("pSelHelp").classList.toggle("hidden", active);
+      if (!s) {
+        $("pSelHelp").textContent = "Double-click a slide on the canvas to open it, then click a card or connector to select it. Double-click any text to retype it in place. Esc steps back out.";
+        return;
+      }
+      if (asset) {
+        $("pSelWhat").textContent = asset.kind;
+        $("pSelTextRow").classList.toggle("hidden", asset.kind !== "text");
+        $("pSelDetailRow").classList.add("hidden");
+        $("pSelNodeRow").classList.add("hidden");
+        $("pSelEdgeRow").classList.add("hidden");
+        $("pSelLabelName").textContent = "Text";
+        if (asset.kind === "text" && document.activeElement !== $("pSelLabel")) $("pSelLabel").value = asset.text || "";
+        $("pEditCount").textContent = "";
+        $("pEditUndo").disabled = true;
+        $("pEditClear").disabled = true;
+        return;
+      }
       const isNode = !!(part && part.kind === "node");
       const isEdge = !!(part && part.kind === "edge");
       const isTitle = !!(part && part.kind === "title");
@@ -1432,7 +2177,12 @@
 
     // The same text edit from the inspector.
     const bindTextField = (id, field) => ($(id).oninput = () => {
-      const part = selectedPart();
+      const part = selectedPart() || (() => {
+        const asset = selectedAsset();
+        return asset && asset.kind === "text"
+          ? { kind: "asset-text", id: assetKey(asset.id), assetId: asset.id, text: asset.text, x: asset.x, y: asset.y, w: asset.w, h: asset.h, style: asset.style || DEFAULT_TEXT_STYLE }
+          : null;
+      })();
       if (part) setText(part, field, $(id).value);
     });
     bindTextField("pSelLabel", "label");
@@ -1496,7 +2246,9 @@
         name.textContent = s.name;
         const meta = document.createElement("div");
         meta.className = "font-mono text-[9px] text-on-surface-variant truncate";
-        meta.textContent = s.err ? "error" : `${s.presetId || "auto"} · ${s.travel.toFixed(1)}+${s.hold.toFixed(1)}s`;
+        meta.textContent = s.err ? "error"
+          : isDiagramSlide(s) ? `${s.presetId || "auto"} · ${s.travel.toFixed(1)}+${s.hold.toFixed(1)}s`
+          : `${SLIDE_KIND_LABEL[slideKind(s)] || slideKind(s)} · ${s.travel.toFixed(1)}+${s.hold.toFixed(1)}s`;
         body.append(name, meta);
         row.append(chip, body);
         row.onclick = () => select(s.id);
@@ -1561,15 +2313,36 @@
       $("slideInsp").classList.toggle("hidden", !s);
       $("noSel").classList.toggle("hidden", !!s);
       if (!s) return;
+      const asset = selectedAsset();
+      const assetText = !!(asset && asset.kind === "text");
+      const assetMedia = !!(asset && (asset.kind === "svg" || asset.kind === "video"));
       if (!keepText) { $("fName").value = s.name; $("fText").value = s.text; }
+      $("fKind").textContent = "diagram";
+      $("fTextLabel").textContent = "Outline";
+      $("fTextLabel").classList.remove("hidden");
+      $("fText").classList.remove("hidden");
+      $("fTextHelp").classList.remove("hidden");
+      $("fText").placeholder = "# Title\n- Point: supporting detail\nA -> B -> C\nCloud vs On-prem";
+      $("fTextHelp").innerHTML = '<code>#</code> title · <code>-</code>/<code>1.</code> items · indent to nest · <code>Label: detail</code> · <code>A -&gt; B</code> flow · <code>A vs B</code> comparison. Plain sentences work too.';
+      $("fLayoutSect").classList.remove("hidden");
+      $("fBuildSect").classList.remove("hidden");
+      $("fInsideSect").classList.remove("hidden");
+      $("fTextStyleSect").classList.toggle("hidden", !assetText);
+      $("fAssetSect").classList.toggle("hidden", !assetMedia);
+      $("fConvert").disabled = !shouldConvertToCheatsheet(s.text);
+      $("fConvert").classList.remove("hidden");
+      $("fStructure").textContent = s.err ? "" : s.forced ? `${s.structure} · re-read from ${s.naturalStructure}` : `${s.structure} · detected`;
+      $("fStructReset").classList.toggle("hidden", !s.forced);
+      $("fConvert").parentElement.classList.remove("hidden");
       fillPresetPicker(s.naturalStructure || s.structure);
       $("fPreset").value = s.preset || "";
-      $("fStructure").textContent = s.err ? "" : s.forced
-        ? `${s.structure} · re-read from ${s.naturalStructure}` : `${s.structure} · detected`;
-      $("fStructReset").classList.toggle("hidden", !s.forced);
-      $("fConvert").disabled = !shouldConvertToCheatsheet(s.text);
-      $("fInfo").textContent = s.err
-        ? `could not build a diagram: ${s.err}`
+      $("fInfo").textContent = asset
+        ? asset.kind === "text"
+          ? `selected text element · ${Math.round(asset.w)}×${Math.round(asset.h)}`
+          : asset.kind === "svg"
+            ? `${asset.svgName || "svg"}${asset.error ? ` · ${asset.error}` : asset.assetW && asset.assetH ? ` · ${Math.round(asset.assetW)}×${Math.round(asset.assetH)}` : ""}`
+            : `${asset.videoName || "video"}${asset.error ? ` · ${asset.error}` : asset.videoDuration ? ` · ${asset.videoDuration.toFixed(1)}s` : ""}`
+        : s.err ? `could not build a diagram: ${s.err}`
         : `${s.presetId} · ${s.graph.nodes.length} nodes · ${s.graph.edges.length} edges · ${Math.round(s.w)}×${Math.round(s.h)}`;
       $("fInfo").classList.toggle("text-error", !!s.err);
       $("fFx").value = s.anim.effect; $("fExit").value = s.anim.exit; $("fSeq").value = s.anim.sequence;
@@ -1579,6 +2352,19 @@
       $("fFxDur").value = s.anim.duration; $("fFxStag").value = s.anim.stagger; $("fExitDur").value = s.anim.exitDuration;
       $("fTravel").value = s.travel; $("fHold").value = s.hold;
       $("fBg").value = s.bg; $("fBgOff").checked = s.bgOn === false;
+      if (assetText) {
+        const style = { ...DEFAULT_TEXT_STYLE, ...(asset.style || {}) };
+        $("fTextSize").value = style.size;
+        $("fTextColor").value = style.color;
+        $("fTextAlign").value = style.align;
+        $("fTextLineHeight").value = style.lineHeight;
+      }
+      if (assetMedia) {
+        $("fAssetInfo").textContent = asset.kind === "svg"
+          ? (asset.svgName || "svg")
+          : `${asset.videoName || "video"}${asset.videoDuration ? ` · ${asset.videoDuration.toFixed(1)}s` : ""}`;
+        $("fAssetReplace").textContent = asset.kind === "svg" ? "Replace SVG…" : "Replace MP4…";
+      }
       renderBgArt();
       syncFrameFields();
       renderFxInfo();
@@ -1589,7 +2375,7 @@
     // fits the time the camera spends on this slide.
     function renderFxInfo() {
       const s = selected(), host = $("fFxInfo");
-      if (!s || !s.view) { host.textContent = ""; return; }
+      if (!s || !s.view || !isDiagramSlide(s)) { host.textContent = ""; return; }
       const plan = planOf(s);
       if (!plan) { host.textContent = ""; return; }
       const secs = (f) => (f / fps).toFixed(1) + "s";
@@ -1614,6 +2400,123 @@
 
     // ---- exports ------------------------------------------------------------
 
+    function svgSlideMarkup(s, tx, ty) {
+      const itemMarkup = (it) => {
+        if (it.kind === "text") {
+          const { style, lines, lineH } = textAssetLayout(it);
+          const box = assetBox(it);
+          const anchor = style.align === "right" ? "end" : style.align === "left" ? "start" : "middle";
+          const x = style.align === "right" ? box.x + box.w - 8 : style.align === "left" ? box.x + 8 : box.x + box.w / 2;
+          const y0 = box.y + Math.max(0, (box.h - lines.length * lineH) / 2);
+          return lines.map((line, i) =>
+            `<text x="${r2(x)}" y="${r2(y0 + i * lineH + style.size)}" fill="${esc(style.color)}" font-family="Inter, sans-serif" font-size="${r2(style.size)}" text-anchor="${anchor}">${esc(line)}</text>`
+          ).join("");
+        }
+        if (it.kind === "svg" && it.svgDataUri) {
+          const box = fitAsset(it.assetW || 1, it.assetH || 1, assetBox(it));
+          return `<image href="${esc(it.svgDataUri)}" x="${r2(box.x)}" y="${r2(box.y)}" width="${r2(box.w)}" height="${r2(box.h)}"/>`;
+        }
+        if (it.kind === "video" && it.poster) {
+          const box = fitAsset(it.assetW || 16, it.assetH || 9, assetBox(it));
+          return `<image href="${esc(it.poster)}" x="${r2(box.x)}" y="${r2(box.y)}" width="${r2(box.w)}" height="${r2(box.h)}"/>`;
+        }
+        return "";
+      };
+      const items = slideItems(s).map((it) => itemMarkup(it)).filter(Boolean).join("");
+      if (isDiagramSlide(s)) {
+        const aspect = `${Math.round(projW)}:${Math.round(projH)}`;
+        const inner = exportSvg(s.graph, { aspect, connector: lineColor() })
+          .replace(/^<svg([^>]*)>/, (m, attrs) => "<svg" + attrs
+            .replace(/\swidth="[^"]*"/, ` width="${r2(s.w)}"`)
+            .replace(/\sheight="[^"]*"/, ` height="${r2(s.h)}"`) + ">");
+        return inner.replace(/<\/svg>\s*$/, `${items}</svg>`);
+      }
+      if (isSvgSlide(s) && s.svgDataUri) {
+        const box = fitContent(s.assetW || 1, s.assetH || 1, 0, 0, s.w, s.h);
+        return `<image href="${esc(s.svgDataUri)}" x="${r2(box.x)}" y="${r2(box.y)}" width="${r2(box.w)}" height="${r2(box.h)}"/>${items}`;
+      }
+      if (isVideoSlide(s) && s.poster) {
+        const box = fitContent(s.assetW || 16, s.assetH || 9, 0, 0, s.w, s.h);
+        return `<image href="${esc(s.poster)}" x="${r2(box.x)}" y="${r2(box.y)}" width="${r2(box.w)}" height="${r2(box.h)}"/>${items}`;
+      }
+      if (isTextSlide(s)) {
+        const { box, style, lines, lineH } = textLayout(s);
+        const anchor = style.align === "right" ? "end" : style.align === "left" ? "start" : "middle";
+        const x = style.align === "right" ? box.x + box.w : style.align === "left" ? box.x : box.x + box.w / 2;
+        const y0 = box.y + Math.max(0, (box.h - lines.length * lineH) / 2);
+        return lines.map((line, i) =>
+          `<text x="${r2(x)}" y="${r2(y0 + i * lineH + style.size)}" fill="${esc(style.color)}" font-family="Inter, sans-serif" font-size="${r2(style.size)}" text-anchor="${anchor}">${esc(line)}</text>`
+        ).join("") + items;
+      }
+      return items;
+    }
+
+    function gateRowsForWindow(win) {
+      if (!win) return [];
+      const rows = [`          <mx:Keyframe frame="0" alpha="0"/>`];
+      if (win.on > 0) rows.push(`          <mx:Keyframe frame="${win.on - 1}" alpha="0"/>`);
+      rows.push(`          <mx:Keyframe frame="${win.on}" alpha="1"/>`);
+      if (Number.isFinite(win.off) && win.off < totalF) {
+        rows.push(`          <mx:Keyframe frame="${win.off}" alpha="1"/>`);
+        rows.push(`          <mx:Keyframe frame="${win.off + 1}" alpha="0"/>`);
+      }
+      return rows;
+    }
+
+    function mediaLax(s) {
+      const win = cardWindow(s);
+      if (!win) return "";
+      const itemMedia = slideItems(s).map((it) => {
+        if (it.kind === "svg" && it.pngDataUri) {
+          const box = fitAsset(it.assetW || 1, it.assetH || 1, { x: s.x + it.x, y: s.y + it.y, w: it.w, h: it.h });
+          return `      <mx:Sprite id="media-${s.id}-${it.id}">\n`
+            + `        <mx:Timeline>\n${gateRowsForWindow(win).join("\n")}\n        </mx:Timeline>\n`
+            + `        <mx:Image id="svg-${s.id}-${it.id}" src="${esc(it.pngDataUri)}" x="${r2(box.x)}" y="${r2(box.y)}" width="${r2(box.w)}" height="${r2(box.h)}"/>\n`
+            + `      </mx:Sprite>\n`;
+        }
+        if (it.kind === "video" && it.videoName) {
+          const box = fitAsset(it.assetW || 16, it.assetH || 9, { x: s.x + it.x, y: s.y + it.y, w: it.w, h: it.h });
+          return `      <mx:Video id="video-${s.id}-${it.id}" src="${esc(it.videoName)}" x="${r2(box.x)}" y="${r2(box.y)}" width="${r2(box.w)}" height="${r2(box.h)}"`
+            + ` trimIn="${r2(it.trimIn || 0)}" trimOut="${r2(Math.max((it.trimIn || 0) + 0.01, it.trimOut || it.videoDuration || 0.01))}" start="${Math.max(0, Math.round(win.on))}" mute="true"/>\n`;
+        }
+        if (it.kind === "text") {
+          const box = assetBox(it);
+          const style = { ...DEFAULT_TEXT_STYLE, ...(it.style || {}) };
+          const span = `          <mx:Span text="${xmlText(it.text || "")}" size="${r2(style.size)}"/>\n`;
+          return `      <mx:Sprite id="text-${s.id}-${it.id}">\n`
+            + `        <mx:Timeline>\n${gateRowsForWindow(win).join("\n")}\n        </mx:Timeline>\n`
+            + `        <mx:Label id="label-${s.id}-${it.id}" x="${r2(s.x + box.x)}" y="${r2(s.y + box.y)}" width="${r2(box.w)}" height="${r2(box.h)}" color="${esc(style.color)}" align="${esc(style.align)}" lineHeight="${r2(style.lineHeight)}">\n`
+            + span
+            + `        </mx:Label>\n`
+            + `      </mx:Sprite>\n`;
+        }
+        return "";
+      }).join("");
+      if (isSvgSlide(s) && s.pngDataUri) {
+        const box = fitContent(s.assetW || 1, s.assetH || 1, s.x, s.y, s.w, s.h);
+        return `      <mx:Sprite id="media-${s.id}">\n`
+          + `        <mx:Timeline>\n${gateRowsForWindow(win).join("\n")}\n        </mx:Timeline>\n`
+          + `        <mx:Image id="svg-${s.id}" src="${esc(s.pngDataUri)}" x="${r2(box.x)}" y="${r2(box.y)}" width="${r2(box.w)}" height="${r2(box.h)}"/>\n`
+          + `      </mx:Sprite>\n${itemMedia}`;
+      }
+      if (isVideoSlide(s) && s.videoName) {
+        const box = fitContent(s.assetW || 16, s.assetH || 9, s.x, s.y, s.w, s.h);
+        return `      <mx:Video id="video-${s.id}" src="${esc(s.videoName)}" x="${r2(box.x)}" y="${r2(box.y)}" width="${r2(box.w)}" height="${r2(box.h)}"`
+          + ` trimIn="${r2(s.trimIn || 0)}" trimOut="${r2(Math.max((s.trimIn || 0) + 0.01, s.trimOut || s.videoDuration || 0.01))}" start="${Math.max(0, Math.round(win.on))}" mute="true"/>\n${itemMedia}`;
+      }
+      if (isTextSlide(s)) {
+        const { box, style } = textLayout(s);
+        const span = `          <mx:Span text="${xmlText(s.text || "")}" size="${r2(style.size)}"/>\n`;
+        return `      <mx:Sprite id="text-${s.id}">\n`
+          + `        <mx:Timeline>\n${gateRowsForWindow(win).join("\n")}\n        </mx:Timeline>\n`
+          + `        <mx:Label id="label-${s.id}" x="${r2(s.x + box.x)}" y="${r2(s.y + box.y)}" width="${r2(box.w)}" height="${r2(box.h)}" color="${esc(style.color)}" align="${esc(style.align)}" lineHeight="${r2(style.lineHeight)}">\n`
+          + span
+          + `        </mx:Label>\n`
+          + `      </mx:Sprite>\n${itemMedia}`;
+      }
+      return itemMedia;
+    }
+
     /**
      * The whole canvas as one SVG: every slide at rest, in world coordinates.
      *
@@ -1625,18 +2528,14 @@
     function canvasSvg() {
       const b = worldBox(), pad = 80;
       const W = Math.round(b.w + pad * 2), H = Math.round(b.h + pad * 2);
-      const aspect = `${Math.round(projW)}:${Math.round(projH)}`;
-      const body = slides.filter((s) => s.view && !s.err).map((s) => {
-        const inner = exportSvg(s.graph, { aspect, connector: lineColor() })
-          .replace(/^<svg([^>]*)>/, (m, attrs) => "<svg" + attrs
-            .replace(/\swidth="[^"]*"/, ` width="${r2(s.w)}"`)
-            .replace(/\sheight="[^"]*"/, ` height="${r2(s.h)}"`) + ">");
+      const body = slides.filter((s) => !s.err && (isDiagramSlide(s) ? !!s.view : true)).map((s) => {
         const card = s.bgOn === false ? ""
           : `<rect x="0" y="0" width="${r2(s.w)}" height="${r2(s.h)}" fill="${esc(s.bg)}"/>`;
         // The backdrop is re-generated at the frame's world size, with its
         // gradients and filters namespaced per slide (bgsvg.js) so twelve
         // backdrops in one file cannot borrow each other's <defs>.
         const art = s.bgOn === false || !s.bgArt ? "" : bgMarkup(s.bgArt, s.w, s.h, { idPrefix: `bg-${s.id}` });
+        const inner = svgSlideMarkup(s);
         return `<g transform="translate(${r2(s.x - b.x + pad)}, ${r2(s.y - b.y + pad)})">${card}${art}${inner}</g>`;
       }).join("\n");
       return `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">\n`
@@ -1673,19 +2572,20 @@
         if (st.holdEnd - 1 > st.holdStart) keys.push(camKey(st.holdEnd - 1));
       }
 
-      const body = slides.filter((s) => s.view && !s.err).map((s) => {
+      const body = slides.filter((s) => isDiagramSlide(s) && s.view && !s.err).map((s) => {
         const plan = planOf(s);
         return plan ? mxmlParts({
           id: `s-${s.id}`, view: s.view, parts: s.view.parts, plan,
           box: { x: s.x, y: s.y, w: s.w, h: s.h }, indent: "      ",
         }) : "";
       }).join("");
+      const media = slides.filter((s) => !s.err).map((s) => mediaLax(s)).join("");
 
       // Each slide's card sits behind the parts, in the same world coordinates,
       // and switches on and off over exactly the window cardWindow() gives the
       // canvas — so a card cannot be present in the render and absent in the
       // preview.
-      const cards = slides.filter((s) => s.view && !s.err && s.bgOn !== false).map((s) => {
+      const cards = slides.filter((s) => !s.err && s.bgOn !== false && (isDiagramSlide(s) ? !!s.view : true)).map((s) => {
         const win = cardWindow(s);
         if (!win) return "";
         const rect = `        <mx:Rect id="card-${s.id}" x="${r2(s.x)}" y="${r2(s.y)}"`
@@ -1717,14 +2617,16 @@
         + `  <mx:Layer name="deck">\n`
         + `    <mx:Sprite id="camera" anchorX="0" anchorY="0">\n`
         + `      <mx:Timeline>\n${keys.join("\n")}\n      </mx:Timeline>\n`
-        + cards + body
+        + cards + body + media
         + `    </mx:Sprite>\n  </mx:Layer>\n</mx:Scene>\n`;
     }
 
     function saveSvg() {
       if (!slides.length) { status("nothing to export yet"); return; }
       download(projName() + ".svg", new Blob([canvasSvg()], { type: "image/svg+xml" }));
-      status("downloaded the canvas — plain, editable vector text");
+      const posters = slides.reduce((n, s) => n + slideItems(s).filter((it) => it.kind === "video").length, 0)
+        + slides.filter((s) => isVideoSlide(s)).length;
+      status(`downloaded the canvas${posters ? " — MP4 items use poster frames in SVG" : " — plain, editable vector text"}`);
     }
     function saveLax() {
       if (!slides.length) { status("nothing to export yet"); return; }
@@ -1733,8 +2635,11 @@
       // <mx:> geometry, and a filter-warped gradient field is not that. Said
       // plainly here rather than discovered in the render.
       const art = slides.filter((s) => s.bgArt).length;
+      const rasterSvg = slides.reduce((n, s) => n + slideItems(s).filter((it) => it.kind === "svg").length, 0)
+        + slides.filter((s) => isSvgSlide(s)).length;
       status(`downloaded ${projName()}.lax — ${totalF} frames of camera and build keyframes`
-        + (art ? ` · ${art} generated backdrop${art === 1 ? "" : "s"} left out (they export with the .svg)` : ""));
+        + (art ? ` · ${art} generated backdrop${art === 1 ? "" : "s"} left out (they export with the .svg)` : "")
+        + (rasterSvg ? ` · ${rasterSvg} imported SVG item${rasterSvg === 1 ? "" : "s"} packed as PNG for runtime playback` : ""));
     }
     /**
      * The deck as PowerPoint: one slide per frame, in path order.
@@ -1746,7 +2651,7 @@
      * can actually edit rather than a folder of pictures.
      */
     function savePptx() {
-      const usable = slides.filter((s) => s.view && !s.err);
+      const usable = slides.filter((s) => isDiagramSlide(s) && s.view && !s.err);
       if (!usable.length) { status("nothing to export yet"); return; }
       const blob = deckToPptx({
         slides: usable.map((s) => ({ name: s.name, view: s.view, bg: s.bg, bgOn: s.bgOn })),
@@ -1842,6 +2747,7 @@
           const n = Math.floor(f);
           if (n !== lastDrawn) {
             lastDrawn = n;
+            syncVideoPlayback(f);
             paintShow(octx, W, H, f);
             track.requestFrame();
             showFrame = f;
@@ -1873,9 +2779,81 @@
         + " · use `la export` for a deterministic mp4");
     }
 
+    function assetPickerOpen() { return !$("assetPickerDlg").classList.contains("hidden"); }
+    function setAssetPickerStatus(msg, err = false) {
+      $("assetPickerStatus").textContent = msg;
+      $("assetPickerStatus").classList.toggle("err", !!err);
+    }
+    function closeAssetPicker() {
+      $("assetPickerDlg").classList.add("hidden");
+      $("assetPickerFrame").src = "about:blank";
+      $("assetPickerImport").disabled = true;
+      assetPickerSelection = null;
+      assetPickerTarget = null;
+      setAssetPickerStatus("Pick an icon in the embedded browser, then import it here.");
+    }
+    function openAssetPicker(target = null) {
+      assetPickerTarget = target || (sel ? { slideId: sel, assetId: null } : null);
+      if (!assetPickerTarget || !assetPickerTarget.slideId) { status("select a slide first"); return; }
+      assetPickerSelection = null;
+      $("assetPickerDlg").classList.remove("hidden");
+      $("assetPickerImport").disabled = true;
+      setAssetPickerStatus("Pick an icon in the embedded browser, then import it here.");
+      $("assetPickerFrame").src = `${SVG_PICKER_URL}&t=${Date.now()}`;
+    }
+    function requestAssetPickerImport() {
+      if (!assetPickerSelection) { setAssetPickerStatus("Pick an icon before importing.", true); return; }
+      const frame = $("assetPickerFrame").contentWindow;
+      if (!frame) { setAssetPickerStatus("The picker is not ready yet.", true); return; }
+      frame.postMessage({ type: "icon-picker-import-request" }, "*");
+    }
+    function handleAssetPickerMessage(ev) {
+      const frame = $("assetPickerFrame").contentWindow;
+      if (frame && ev.source !== frame) return;
+      const data = ev.data || {};
+      if (data.type === "icon-picker-selected") {
+        assetPickerSelection = data.icon || null;
+        $("assetPickerImport").disabled = !assetPickerSelection;
+        setAssetPickerStatus(assetPickerSelection
+          ? `Selected ${assetPickerSelection.name}`
+          : "Pick an icon in the embedded browser, then import it here.");
+        return;
+      }
+      if (data.type === "icon-picker-close") { closeAssetPicker(); return; }
+      if (data.type === "icon-picker-error") { setAssetPickerStatus(data.message || "Could not import the selected icon.", true); return; }
+      if (data.type !== "icon-picker-import") return;
+      const icon = data.icon || {};
+      const svg = typeof icon.svg === "string" ? icon.svg : "";
+      if (!svg) { setAssetPickerStatus("The picker did not send any SVG content.", true); return; }
+      importSvgSlide(svg, icon.name || "icon.svg", assetPickerTarget.slideId);
+      closeAssetPicker();
+    }
+
     function goFullscreen() {
       if (document.fullscreenElement) document.exitFullscreen();
       else $("stageWrap").requestFullscreen?.();
+    }
+
+    function addTextSlide() {
+      const s = selected();
+      if (!s || !s.view) { status("select a slide first"); return; }
+      const box = defaultAssetRect(s, 3.2, 0.64);
+      const it = {
+        id: uid(),
+        kind: "text",
+        x: box.x,
+        y: box.y,
+        w: box.w,
+        h: Math.max(90, box.h * 0.68),
+        text: "Headline\nSupporting line",
+        style: { ...DEFAULT_TEXT_STYLE, align: "center" },
+      };
+      slideItems(s).push(it);
+      enterSlide(s.id);
+      selectAsset(it.id);
+      syncInspector(true);
+      redraw();
+      status(`added a text element to "${s.name}"`);
     }
 
     // ---- wiring -------------------------------------------------------------
@@ -1886,6 +2864,9 @@
           addSlide("# A zooming deck\n- Every frame is a diagram\n- The camera flies between them");
         } },
         { label: "Add slide", icon: "add_box", run: () => addSlide() },
+        { label: "Add text to selected slide", icon: "title", run: addTextSlide },
+        { label: "Import SVG into selected slide…", icon: "upload_file", run: () => openAssetPicker() },
+        { label: "Import MP4 into selected slide…", icon: "movie", run: () => { videoImportTarget = sel ? { slideId: sel, assetId: null } : null; if (!videoImportTarget) status("select a slide first"); else $("videoFile").click(); } },
         "sep",
         { label: "Download canvas (.svg)", icon: "download", run: saveSvg },
         { label: "Download slides (.pptx)", icon: "rectangle", run: savePptx },
@@ -1984,18 +2965,19 @@
     });
     $("fPreset").addEventListener("change", () => {
       const s = selected();
-      if (!s) return;
+      if (!s || !isDiagramSlide(s)) return;
       s.preset = $("fPreset").value;
       regen(s); syncInspector(true); renderPath(); redraw();
     });
     $("fPresetSearch").addEventListener("input", () => {
       const s = selected();
+      if (s && !isDiagramSlide(s)) return;
       fillPresetPicker(s ? (s.naturalStructure || s.structure) : null);
       if (s) $("fPreset").value = s.preset || "";
     });
     $("fStructReset").addEventListener("click", () => {
       const s = selected();
-      if (!s) return;
+      if (!s || !isDiagramSlide(s)) return;
       s.preset = "";
       regen(s); syncInspector(true); renderPath(); redraw();
     });
@@ -2003,7 +2985,7 @@
     // Ctrl+Z takes the typed text back.
     $("fConvert").addEventListener("click", () => {
       const s = selected();
-      if (!s || !shouldConvertToCheatsheet(s.text)) return;
+      if (!s || !isDiagramSlide(s) || !shouldConvertToCheatsheet(s.text)) return;
       const field = $("fText"), converted = plainTextToCheatsheet(s.text);
       field.focus();
       field.setSelectionRange(0, field.value.length);
@@ -2017,13 +2999,13 @@
       $(id).addEventListener("change", () => {
         syncFxDirs();
         const s = selected();
-        if (s) { readAnim(s); renderFxInfo(); redraw(); }
+        if (s && isDiagramSlide(s)) { readAnim(s); renderFxInfo(); redraw(); }
       });
     }
     for (const id of ["fFxDir", "fExitDir", "fSeq", "fFxDur", "fFxStag", "fExitDur"]) {
       $(id).addEventListener("input", () => {
         const s = selected();
-        if (s) { readAnim(s); renderFxInfo(); redraw(); }
+        if (s && isDiagramSlide(s)) { readAnim(s); renderFxInfo(); redraw(); }
       });
     }
     for (const id of ["fTravel", "fHold"]) {
@@ -2049,6 +3031,22 @@
     $("fBg").addEventListener("input", () => { const s = selected(); if (s) { s.bg = $("fBg").value; redraw(); } });
     $("fBgOff").addEventListener("change", () => { const s = selected(); if (s) { s.bgOn = !$("fBgOff").checked; redraw(); } });
     $("fArrange").addEventListener("click", autoArrange);
+    for (const id of ["fTextSize", "fTextAlign", "fTextColor", "fTextLineHeight"]) {
+      $(id).addEventListener("input", () => {
+        const asset = selectedAsset();
+        if (!asset || asset.kind !== "text") return;
+        asset.style = {
+          ...DEFAULT_TEXT_STYLE,
+          ...(asset.style || {}),
+          size: Math.max(8, Number($("fTextSize").value) || DEFAULT_TEXT_STYLE.size),
+          align: $("fTextAlign").value || DEFAULT_TEXT_STYLE.align,
+          color: $("fTextColor").value || DEFAULT_TEXT_STYLE.color,
+          lineHeight: Math.max(0.8, Number($("fTextLineHeight").value) || DEFAULT_TEXT_STYLE.lineHeight),
+        };
+        renderSelBar();
+        redraw();
+      });
+    }
 
     // ---- the backdrop -------------------------------------------------------
     //
@@ -2119,8 +3117,44 @@
     $("pShowPath").addEventListener("change", redraw);
     // The connector colour belongs to the drawing, so changing it regenerates.
     $("pLine").addEventListener("input", () => { for (const s of slides) regen(s); syncInspector(true); redraw(); });
+    $("fAssetReplace").onclick = () => {
+      const s = selected(), asset = selectedAsset();
+      if (!s || !asset) return;
+      if (asset.kind === "svg") openAssetPicker({ slideId: s.id, assetId: asset.id });
+      else if (asset.kind === "video") { videoImportTarget = { slideId: s.id, assetId: asset.id }; $("videoFile").click(); }
+    };
+    $("assetPickerFile").onclick = () => $("svgFile").click();
+    $("assetPickerImport").onclick = requestAssetPickerImport;
+    $("assetPickerClose").onclick = closeAssetPicker;
+    $("assetPickerCancel").onclick = closeAssetPicker;
+    $("svgFile").addEventListener("change", async () => {
+      const f = $("svgFile").files && $("svgFile").files[0];
+      $("svgFile").value = "";
+      if (!f) return;
+      try {
+        importSvgSlide(await f.text(), f.name, assetPickerTarget?.slideId || null);
+        closeAssetPicker();
+      } catch (err) {
+        setAssetPickerStatus(`could not read ${f.name}: ${err}`, true);
+      }
+    });
+    window.addEventListener("message", handleAssetPickerMessage);
+    $("videoFile").addEventListener("change", () => {
+      const f = $("videoFile").files && $("videoFile").files[0];
+      $("videoFile").value = "";
+      if (!f) return;
+      importVideoSlide(f, videoImportTarget?.slideId || null);
+      videoImportTarget = null;
+    });
 
     $("btnAdd").onclick = () => addSlide();
+    $("btnAddText").onclick = addTextSlide;
+    $("btnImportSvg").onclick = () => openAssetPicker();
+    $("btnImportVideo").onclick = () => {
+      videoImportTarget = sel ? { slideId: sel, assetId: null } : null;
+      if (!videoImportTarget) { status("select a slide first"); return; }
+      $("videoFile").click();
+    };
     $("btnDup").onclick = dup;
     $("btnUp").onclick = () => sel && move(sel, -1);
     $("btnDown").onclick = () => sel && move(sel, 1);
@@ -2145,6 +3179,7 @@
       scrubbing = true;
       showFrame = Number($("scrub").value) || 0;
       Object.assign(cam, camAt(showFrame));
+      syncVideoPlayback(showFrame);
       syncTransport(); redraw();
     });
 
@@ -2159,13 +3194,14 @@
       // presenting, an arrow jumps to the next slide — and the edit is lost to
       // something the user never asked for. Escape is the one key that still
       // gets through, because it is how you close them.
-      if ((inlineEdit || iconPopOpen()) && ev.key !== "Escape") return;
+      if ((inlineEdit || iconPopOpen() || assetPickerOpen()) && ev.key !== "Escape") return;
       // Escape unwinds one layer at a time — the picker, then the slide you are
       // inside, then the framing — rather than jumping straight to the overview
       // and losing the place you were working in.
       if (ev.key === "Escape") {
         ev.preventDefault();
-        if (iconPopOpen()) closeIconPop();
+        if (assetPickerOpen()) closeAssetPicker();
+        else if (iconPopOpen()) closeIconPop();
         else if (inlineEdit) closeTextEditor(false);
         else if (editing) leaveSlide();
         else { pause(); flyTo(camOverview(), 0.6); }
