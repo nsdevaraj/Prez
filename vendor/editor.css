@@ -1,0 +1,176 @@
+* { box-sizing: border-box; }
+body { margin: 0; height: 100vh; display: flex; flex-direction: column; overflow: hidden;
+       font: 11px "Segoe UI", Tahoma, system-ui, sans-serif; background: #e6e6e6; color: #222;
+       user-select: none; }
+
+/* ---- menu bar + Scene edit bar (chrome) ---- */
+#menubar { display: flex; align-items: center; gap: 2px; padding: 2px 6px;
+           background: linear-gradient(#fdfdfd, #dcdcdc); border-bottom: 1px solid #9a9a9a; }
+#menubar .brand { font-weight: 700; color: #a03; margin-right: 10px; }
+#menubar .mi { padding: 2px 7px; border-radius: 2px; cursor: default; }
+#menubar .mi:hover { background: #316ac5; color: #fff; }
+#editbar { display: flex; align-items: center; gap: 8px; padding: 3px 8px;
+           background: linear-gradient(#f4f4f4, #d6d6d6); border-bottom: 1px solid #9a9a9a; }
+#sceneCrumb { font-weight: 700; }
+#editbar .zoom { margin-left: auto; color: #555; }
+
+/* ---- main row: tools | timeline+stage | code panel ---- */
+#main { flex: 1; display: flex; min-height: 0; }
+#tools { width: 54px; padding: 5px 4px 7px; background: linear-gradient(#f5f5f5, #dcdcdc);
+         border-right: 1px solid #9a9a9a; display: flex; flex-direction: column; gap: 4px;
+         align-items: stretch; overflow-y: auto; overflow-x: hidden; }
+.toolGroup { display: grid; grid-template-columns: 1fr 1fr; gap: 2px; justify-items: center; }
+.toolSep { height: 0; margin: 1px 2px; border-top: 1px solid #a6a6a6; border-bottom: 1px solid #fbfbfb; }
+#tools .tool { position: relative; width: 21px; height: 21px; padding: 0; font-size: 12px;
+               line-height: 19px; text-align: center; color: #222; cursor: pointer;
+               border: 1px solid #bcbcbc; border-radius: 3px; box-shadow: inset 0 1px 0 #fff;
+               background: linear-gradient(#fdfdfd, #ececec); }
+#tools .tool:hover { border-color: #316ac5; background: linear-gradient(#ffffff, #e7f0fb); }
+#tools .tool.active { color: #0b264d; border-color: #2c5aa0;
+                      background: linear-gradient(#cfe0f8, #a6c4ee);
+                      box-shadow: inset 0 1px 2px rgba(44, 90, 160, .35); }
+#tools .tool.soon { color: #9d9d9d; border-color: #d0d0d0; box-shadow: none;
+                    background: linear-gradient(#f3f3f3, #e7e7e7); }
+#tools .tool.soon:hover { border-color: #9a9a9a; background: #efefef; }
+#tools .tool[data-sc]::after { content: attr(data-sc); position: absolute; right: 1px; bottom: 0;
+                               font: 700 6px/1 "Segoe UI", system-ui, sans-serif; color: #2c5aa0;
+                               opacity: 0; transition: opacity .1s; pointer-events: none; }
+#tools .tool:hover[data-sc]::after, #tools .tool.active[data-sc]::after { opacity: .85; }
+
+/* color well: overlapping stroke-over-fill swatches + swap / default */
+.toolColors { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+.chipStack { position: relative; width: 34px; height: 27px; }
+.chipStack .chip { position: absolute; width: 18px; height: 15px; border: 1px solid #4a4a4a;
+                   box-shadow: 0 1px 2px rgba(0, 0, 0, .35); }
+.chipStack .strokeChip { top: 0; left: 0; z-index: 2; }
+.chipStack .fillChip { right: 0; bottom: 0; z-index: 1; }
+.chipBtns { display: flex; gap: 4px; }
+.chipBtns .miniBtn { width: 16px; height: 15px; padding: 0; font-size: 10px; line-height: 13px;
+                     color: #333; cursor: pointer; border: 1px solid #999; border-radius: 2px;
+                     background: linear-gradient(#fdfdfd, #e6e6e6); }
+.chipBtns .miniBtn:hover { border-color: #316ac5; background: #e7f0fb; }
+
+/* context-sensitive options tray (bottom of the palette) */
+#toolOptions { display: flex; flex-direction: column; align-items: stretch; gap: 3px; }
+#toolOptions .optName { font-size: 8px; letter-spacing: .04em; text-align: center; color: #6a6a6a;
+                        text-transform: uppercase; overflow: hidden; text-overflow: ellipsis;
+                        white-space: nowrap; }
+#toolOptions .optBtn { padding: 3px 0; font: 9px/1 "Segoe UI", system-ui, sans-serif; color: #333;
+                       cursor: pointer; border: 1px solid #999; border-radius: 2px;
+                       background: linear-gradient(#fdfdfd, #e6e6e6); }
+#toolOptions .optBtn:hover { border-color: #316ac5; background: #e7f0fb; }
+#toolOptions .optBtn.on { color: #0b264d; border-color: #2c5aa0;
+                          background: linear-gradient(#cfe0f8, #a6c4ee); }
+
+#center { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+
+/* ---- timeline panel ---- */
+#timelinePanel { border-bottom: 1px solid #9a9a9a; background: #e0e0e0; }
+.panelTab { display: inline-block; padding: 2px 10px; font-weight: 700;
+            background: linear-gradient(#fcfcfc, #d9d9d9); border: 1px solid #9a9a9a;
+            border-bottom: none; border-radius: 3px 3px 0 0; margin: 2px 0 0 4px; }
+#tlBody { display: flex; border-top: 1px solid #9a9a9a; background: #d4d4d4; }
+.crumbs { display: inline-block; margin-left: 8px; font-size: 11px; color: #333; vertical-align: bottom; }
+.crumbs .crumb { cursor: pointer; color: #1c5fb4; }
+.crumbs .crumb:hover { text-decoration: underline; }
+.crumbs .crumb.cur { color: #333; cursor: default; font-weight: 700; }
+.crumbs .sep { color: #888; margin: 0 3px; }
+.layerRow.nodeRow .layerName { cursor: default; }
+.layerRow.nodeRow .layerName.container { cursor: pointer; color: #1c5fb4; }
+.layerRow.nodeRow .flatBadge { font-size: 9px; color: #a06000; margin-left: 4px; }
+#tlLeft { width: 178px; flex: none; border-right: 1px solid #9a9a9a; }
+#tlHead { height: 20px; display: flex; align-items: center; border-bottom: 1px solid #aaa;
+          background: linear-gradient(#efefef, #d5d5d5); }
+#tlHead .hspace { flex: 1; }
+#tlHead .hcol { width: 16px; text-align: center; color: #444; font-size: 9px; }
+.layerRow { height: 18px; display: flex; align-items: center; gap: 4px; padding-left: 4px;
+            border-bottom: 1px solid #bbb; background: #cfcfcf; cursor: default; }
+.layerRow.active { background: #9db6d9; }
+.layerRow .swatch { width: 9px; height: 9px; border: 1px solid #555; flex: none; }
+.layerRow .layerName { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.layerRow .dot { width: 16px; text-align: center; cursor: pointer; flex: none; }
+.layerRow .eyeDot.off { color: #c00; font-weight: 700; }
+.layerRow .lockDot.on { color: #222; }
+#tlRight { flex: 1; overflow-x: auto; overflow-y: hidden; }
+#tlScroll { position: relative; }
+#ruler { height: 20px; position: relative; border-bottom: 1px solid #aaa;
+         background: repeating-linear-gradient(to right, #efefef 0 9px, #ccc 9px 10px),
+                     linear-gradient(#efefef, #d5d5d5); }
+#ruler .rulNum { position: absolute; top: 3px; font-size: 9px; color: #333; }
+.cellRow { height: 18px; position: relative; border-bottom: 1px solid #bbb;
+           background: repeating-linear-gradient(to right, transparent 0 49px, rgba(0,0,0,.14) 49px 50px),
+                       repeating-linear-gradient(to right, #fff 0 9px, #e2e2e2 9px 10px); }
+.kf { position: absolute; top: 0; width: 10px; height: 100%; text-align: center;
+      line-height: 17px; font-size: 10px; color: #111; }
+#playhead { position: absolute; top: 0; bottom: 0; width: 10px; pointer-events: none;
+            border-left: 2px solid #c00; background: rgba(204, 0, 0, .18); }
+#timeline { position: absolute; top: 0; left: 0; height: 20px; margin: 0; opacity: 0;
+            cursor: col-resize; }
+#tlStatus { display: flex; align-items: center; gap: 10px; padding: 2px 8px; height: 22px;
+            background: linear-gradient(#efefef, #d5d5d5); border-top: 1px solid #aaa; }
+#tlStatus button { font: inherit; padding: 0 6px; }
+#frameNo { font-weight: 700; min-width: 2em; text-align: center; }
+
+/* ---- stage pasteboard ---- */
+#pasteboard { flex: 1; overflow: auto; background: #b3b3b3; display: grid; place-items: center; }
+#stageWrap { position: relative; box-shadow: 0 2px 8px rgba(0,0,0,.45); }
+#stage { display: block; image-rendering: pixelated; background: #0d0d14; }
+#marquee { position: absolute; display: none; border: 1px dashed #09f; pointer-events: none;
+           background: rgba(0, 153, 255, .12); }
+
+/* ---- properties inspector (bottom) ---- */
+#propsPanel { border-top: 1px solid #9a9a9a; background: #e0e0e0; padding-bottom: 4px; }
+#props { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; padding: 4px 8px;
+         border-top: 1px solid #9a9a9a; background: #d4d4d4; }
+#props input, #props select { background: #fff; color: #222; border: 1px solid #888;
+                              width: 5em; font: inherit; }
+#props select { width: auto; }
+#props input[type=checkbox] { width: auto; }
+/* `display:contents` lets the dynamically-built type fields sit as direct
+   flex items of #props, wrapping like the static x/y/w/h inputs. */
+#propsExtra { display: contents; }
+#props .propField { display: inline-flex; align-items: center; gap: 3px; }
+#props button { font: inherit; padding: 1px 7px; cursor: pointer; }
+
+/* ---- code panel (right dock) ---- */
+#codePanel { width: 380px; flex: none; display: flex; flex-direction: column;
+             border-left: 1px solid #9a9a9a; background: #e0e0e0; }
+#codePanel .panelHead { padding: 3px 8px; font-weight: 700;
+                        background: linear-gradient(#fcfcfc, #d9d9d9);
+                        border-bottom: 1px solid #9a9a9a; }
+#code { flex: 1; background: #0d0d14; color: #cde; border: none; padding: 6px;
+        font: 12px ui-monospace, monospace; white-space: pre; resize: none; user-select: text; }
+#status { padding: 4px 6px; min-height: 1.4em; background: #d4d4d4; }
+#status.err { color: #a00; font-weight: 700; } #status.ok { color: #071; }
+
+/* ---- library panel (component palette, right dock) ---- */
+#library { display: flex; flex-wrap: wrap; gap: 3px; padding: 4px 6px; max-height: 96px;
+           overflow-y: auto; background: #d4d4d4; border-bottom: 1px solid #9a9a9a; }
+#library button { font: inherit; padding: 2px 7px; cursor: pointer; color: #222;
+                  background: linear-gradient(#fcfcfc, #e4e4e4);
+                  border: 1px solid #8a8a8a; border-radius: 2px; }
+#library button:hover { background: #eaf1fb; border-color: #316ac5; }
+#importSvgBtn { float: right; font: inherit; font-size: 11px; padding: 1px 8px; cursor: pointer;
+                color: #222; background: linear-gradient(#fcfcfc, #e4e4e4);
+                border: 1px solid #8a8a8a; border-radius: 2px; }
+#importSvgBtn:hover { background: #eaf1fb; border-color: #316ac5; }
+
+/* ---- working dropdown menus ---- */
+#menubar .mi { position: relative; }
+#menubar .mi.open { background: #316ac5; color: #fff; }
+.menuPop { position: absolute; top: 100%; left: 0; z-index: 60; min-width: 190px;
+           display: none; padding: 3px 0; color: #222; cursor: default;
+           background: #f4f4f4; border: 1px solid #8a8a8a; box-shadow: 0 5px 14px rgba(0,0,0,.32); }
+#menubar .mi.open .menuPop { display: block; }
+.menuPop .item { display: flex; justify-content: space-between; gap: 26px;
+                 padding: 3px 12px; white-space: nowrap; }
+.menuPop .item:hover { background: #316ac5; color: #fff; }
+.menuPop .item .sc { color: #8a8a8a; }
+.menuPop .item:hover .sc { color: #dce6ff; }
+.menuPop .sep { height: 1px; margin: 3px 6px; background: #c8c8c8; }
+
+/* ---- chips + zoom readout + panel toggles ---- */
+#tools .chip { cursor: pointer; }
+#editbar .zoom { cursor: pointer; }
+#editbar .zoom:hover { color: #111; text-decoration: underline; }
+.hiddenPanel { display: none !important; }
