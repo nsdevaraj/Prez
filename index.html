@@ -242,11 +242,6 @@
     .row > .k { font-size: 11px; color: rgba(189,200,209,.75); width: 58px; flex: none; }
     .row > select, .row > input[type=text], .row > input:not([type]) { flex: 1; min-width: 0; }
     .hidden { display: none !important; }
-    /* .hidden carries !important because the app toggles it, so a responsive
-       Tailwind variant can never reveal what it hides — this chip needs its own
-       query. */
-    #statusChip { display: none; }
-    @media (min-width: 1280px) { #statusChip { display: flex; } }
     #assetPickerDlg { position: fixed; inset: 0; z-index: 120; display: grid; place-items: center;
                       background: rgba(1, 15, 31, .72); backdrop-filter: blur(6px); }
     #assetPickerDlg.hidden { display: none !important; }
@@ -280,7 +275,7 @@
        resting on top of it as glass rather than boxing it into a column. -->
   <div id="stageWrap">
     <canvas id="stage"></canvas>
-    <div id="hint">wheel — zoom · drag — pan · double-click — open a slide · ←/→ step · space — play</div>
+    <div id="hint">wheel — zoom · drag — pan · drag a frame — move · corner — resize · double-click — open a slide · ←/→ step · space — play</div>
     <!-- The floating field and the icon popover live in the STAGE, not in
          the canvas: the canvas is repainted wholesale on every frame, and a
          field being typed into has to outlive that. -->
@@ -322,12 +317,6 @@
       <button class="menubtn" data-menu="slide">Slide</button>
       <button class="menubtn" data-menu="view">View</button>
     </nav>
-
-    <div id="statusChip" class="items-center gap-3 min-w-0 max-w-[44ch]">
-      <span class="h-4 w-px bg-white/10 shrink-0"></span>
-      <span class="material-symbols-outlined text-[14px] text-primary-container/60">terminal</span>
-      <span id="statusText" class="font-mono text-[10px] text-on-surface-variant truncate">ready — add a slide, place it on the canvas, then press Present</span>
-    </div>
 
     <div class="flex items-center gap-2 shrink-0 ml-auto">
       <button id="btnFit" class="glass-button h-8 px-3 rounded-pill text-[11px] font-medium flex items-center gap-1">
@@ -374,9 +363,8 @@
         <button id="btnDel" class="glass-button danger flex-1 h-8 rounded-[8px] flex items-center justify-center" title="Delete the selected slide">
           <span class="material-symbols-outlined text-[17px] text-error">delete</span></button>
       </div>
-      <p class="mt-3 text-[9px] leading-relaxed text-on-surface/40">
-        The path is the order the camera flies in. Click a frame to fly to it; drag it on
-        the canvas to move it, or a corner to resize.
+      <p id="statusText" class="mt-3 font-mono text-[9px] leading-relaxed text-on-surface/40 max-h-[3.5rem] overflow-hidden">
+        ready — add a slide, place it on the canvas, then press Present
       </p>
     </div>
   </aside>
