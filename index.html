@@ -238,7 +238,9 @@
     .sect.collapsed > .t { margin-bottom: 0; }
     .sect.collapsed > .t::after { transform: rotate(-90deg); }
     .sect.collapsed > :not(.t) { display: none !important; }
-    .row { display: flex; align-items: center; gap: 6px; margin-bottom: 6px; }
+    /* Wrapping rather than spilling: a row too dense for the panel takes a
+       second line instead of pushing a horizontal scrollbar onto the panel. */
+    .row { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-bottom: 6px; }
     .row > .k { font-size: 11px; color: rgba(189,200,209,.75); width: 58px; flex: none; }
     .row > select, .row > input[type=text], .row > input:not([type]) { flex: 1; min-width: 0; }
     .hidden { display: none !important; }
@@ -372,7 +374,7 @@
   <!-- Inspector: the selected slide, then the deck -->
   <aside class="fixed top-20 right-4 bottom-4 w-80 glass-panel rounded-glass z-40 flex flex-col overflow-hidden">
     <div class="panel-header"><span>Inspector</span></div>
-    <div class="flex-1 overflow-y-auto px-4 py-3">
+    <div class="flex-1 overflow-y-auto overflow-x-hidden px-4 py-3">
 
       <div id="noSel" class="text-[11px] text-on-surface/60 leading-relaxed">
         No slide selected. <b class="text-on-surface">Add slide</b> creates a frame on the canvas; every frame is a
@@ -482,8 +484,8 @@
 
         <div class="sect">
           <div class="t"><span class="material-symbols-outlined text-[14px] text-primary-container">crop_free</span>Frame</div>
-          <div class="row"><span class="k">X</span><input type="number" id="fX" step="10" class="num w-20">
-            <span class="k">Y</span><input type="number" id="fY" step="10" class="num w-20"></div>
+          <div class="row"><span class="k">X</span><input type="number" id="fX" step="10" class="num flex-1 min-w-0">
+            <span class="k !w-4">Y</span><input type="number" id="fY" step="10" class="num flex-1 min-w-0"></div>
           <div class="row"><span class="k">Width</span><input type="number" id="fW" min="80" step="20" class="num w-20">
             <span class="text-[9px] text-on-surface/40 leading-tight">height follows the diagram's own aspect</span></div>
           <div class="row"><span class="k">Card</span><input type="color" id="fBg" class="swatch">
@@ -503,9 +505,9 @@
       <div class="sect">
         <div class="t"><span class="material-symbols-outlined text-[14px] text-primary-container">tune</span>Presentation</div>
         <div class="row"><span class="k">Frame</span>
-          <label class="flex items-center gap-1 text-[9px] text-on-surface/40">W<input type="number" id="pW" value="1920" min="16" step="2" class="num w-16"></label>
-          <label class="flex items-center gap-1 text-[9px] text-on-surface/40">H<input type="number" id="pH" value="1080" min="16" step="2" class="num w-16"></label>
-          <label class="flex items-center gap-1 text-[9px] text-on-surface/40">FPS<input type="number" id="pFps" value="30" min="1" max="120" class="num w-12"></label></div>
+          <label class="flex items-center gap-1 text-[9px] text-on-surface/40">W<input type="number" id="pW" value="1920" min="16" step="2" class="num w-12"></label>
+          <label class="flex items-center gap-1 text-[9px] text-on-surface/40">H<input type="number" id="pH" value="1080" min="16" step="2" class="num w-12"></label>
+          <label class="flex items-center gap-1 text-[9px] text-on-surface/40">FPS<input type="number" id="pFps" value="30" min="1" max="120" class="num w-10"></label></div>
         <div class="row"><span class="k">Name</span><input type="text" id="pName" value="deck" class="num flex-1 text-left"></div>
         <div class="row"><span class="k">Lines</span><input type="color" id="pLine" value="#94a3b8" class="swatch">
           <span class="k">Paper</span><input type="color" id="pPaper" value="#051424" class="swatch"></div>
