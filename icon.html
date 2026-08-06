@@ -693,9 +693,18 @@
     $openCdnBtn.hidden = true;
   }
 
+  // The picker is served alongside the editor, so its parent is same-origin.
+  // Naming that origin rather than '*' is what keeps the selected icon's SVG
+  // from being readable by any page that embeds this one. An opaque origin
+  // (file://) cannot be named at all, so it falls back to '/' — "same origin
+  // as this document", the same restriction expressed the only other way
+  // postMessage allows.
+  const PARENT_ORIGIN = new URL(document.baseURI).origin;
+  const PARENT_TARGET = PARENT_ORIGIN === 'null' ? '/' : PARENT_ORIGIN;
+
   function postToParent(type, payload = {}) {
     if (window.parent && window.parent !== window) {
-      window.parent.postMessage({ type, ...payload }, '*');
+      window.parent.postMessage({ type, ...payload }, PARENT_TARGET);
     }
   }
 
@@ -740,34 +749,60 @@
 
       const hdr = document.createElement('div');
       hdr.className = 'cat-header';
-      hdr.innerHTML = `
-        <svg class="cat-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-          <polyline points="9 18 15 12 9 6"/>
-        </svg>
-        <span class="cat-name" title="${cat.name}">${cat.name}</span>
-        <span class="cat-count">${cat.packCount}</span>
-      `;
 
-      const packs = document.createElement('div');
-      packs.className = 'pack-list';
-      cat.packs.forEach(pack => {
-        const btn = document.createElement('button');
-        btn.className = 'pack-item';
-        btn.dataset.cat  = cat.slug;
-        btn.dataset.pack = pack.slug;
-        btn.innerHTML = `<span class="pack-name" title="${pack.name}">${pack.name}</span><span class="pack-count">${pack.iconCount}</span>`;
-        btn.addEventListener('click', (e) => {
-          e.stopPropagation();
-          selectPack(cat.slug, pack.slug, pack.name, pack.iconCount);
-        });
-        packs.appendChild(btn);
-      });
+     const chevron = document.createElement('svg');
+     chevron.className = 'cat-chevron';
+     chevron.setAttribute('viewBox', '0 0 24 24');
+     chevron.setAttribute('fill', 'none');
+     chevron.setAttribute('stroke', 'currentColor');
+     chevron.setAttribute('stroke-width', '2.5');
+     chevron.setAttribute('stroke-linecap', 'round');
+     chevron.setAttribute('stroke-linejoin', 'round');
+     const polyline = document.createElement('polyline');
+     polyline.setAttribute('points', '9 18 15 12 9 6');
+     chevron.appendChild(polyline);
 
-      hdr.addEventListener('click', () => toggleCategory(hdr, packs, cat.slug));
-      item.appendChild(hdr);
-      item.appendChild(packs);
-      $catList.appendChild(item);
-    });
+     const name = document.createElement('span');
+     name.className = 'cat-name';
+     name.title = cat.name;
+     name.textContent = cat.name;
+
+     const count = document.createElement('span');
+     count.className = 'cat-count';
+     count.textContent = cat.packCount;
+
+     hdr.append(chevron, name, count);
+
+     const packs = document.createElement('div');
+     packs.className = 'pack-list';
+     cat.packs.forEach(pack => {
+       const btn = document.createElement('button');
+       btn.className = 'pack-item';
+       btn.dataset.cat  = cat.slug;
+       btn.dataset.pack = pack.slug;
+
+       const packName = document.createElement('span');
+       packName.className = 'pack-name';
+       packName.title = pack.name;
+       packName.textContent = pack.name;
+
+       const packCount = document.createElement('span');
+       packCount.className = 'pack-count';
+       packCount.textContent = pack.iconCount;
+
+       btn.append(packName, packCount);
+       btn.addEventListener('click', (e) => {
+         e.stopPropagation();
+         selectPack(cat.slug, pack.slug, pack.name, pack.iconCount);
+       });
+       packs.appendChild(btn);
+     });
+
+     hdr.addEventListener('click', () => toggleCategory(hdr, packs, cat.slug));
+     item.appendChild(hdr);
+     item.appendChild(packs);
+     $catList.appendChild(item);
+   });
   }
 
   function toggleCategory(hdr, packs, catSlug) {
@@ -1081,13 +1116,52 @@
     $iconGrid.classList.add('hidden');
     $loadMoreWrap.classList.remove('visible');
     $statePanel.classList.remove('hidden');
-    if (type === 'loading') {
-      $statePanel.innerHTML = `<div class="spinner"></div><p>${msg}</p>`;
-    } else if (type === 'empty') {
-      $statePanel.innerHTML = `
-        <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><line x1="8" y1="11" x2="14" y2="11"/></svg>
-        <p>${msg}</p>`;
-    }
+   $statePanel.innerHTML = '';
+
+   const content = document.createElement('div');
+   content.className = 'state-panel-content';
+
+   if (type === 'loading') {
+     const spinner = document.createElement('div');
+     spinner.className = 'spinner';
+     const paragraph = document.createElement('p');
+     paragraph.textContent = msg;
+     content.append(spinner, paragraph);
+   } else if (type === 'empty') {
+     const icon = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+     icon.setAttribute('width', '40');
+     icon.setAttribute('height', '40');
+     icon.setAttribute('viewBox', '0 0 24 24');
+     icon.setAttribute('fill', 'none');
+     icon.setAttribute('stroke', 'currentColor');
+     icon.setAttribute('stroke-width', '1.5');
+
+     const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+     circle.setAttribute('cx', '11');
+     circle.setAttribute('cy', '11');
+     circle.setAttribute('r', '8');
+     icon.appendChild(circle);
+
+     const line1 = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+     line1.setAttribute('x1', '21');
+     line1.setAttribute('y1', '21');
+     line1.setAttribute('x2', '16.65');
+     line1.setAttribute('y2', '16.65');
+     icon.appendChild(line1);
+
+     const line2 = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+     line2.setAttribute('x1', '8');
+     line2.setAttribute('y1', '11');
+     line2.setAttribute('x2', '14');
+     line2.setAttribute('y2', '11');
+     icon.appendChild(line2);
+
+     const paragraph = document.createElement('p');
+     paragraph.textContent = msg;
+     content.append(icon, paragraph);
+   }
+
+   $statePanel.appendChild(content);
   }
 
   /* ── Keyboard shortcuts ──────────────────────────────── */
@@ -1120,9 +1194,18 @@
 
   /* ── Init ────────────────────────────────────────────── */
   loadCatalog().catch(err => {
-    $catList.innerHTML = `<div style="padding:16px;color:var(--danger);font-size:12px">
-      Failed to load catalog.<br><small>${err.message}</small>
-    </div>`;
+   $catList.innerHTML = '';
+   const failure = document.createElement('div');
+   failure.style.padding = '16px';
+   failure.style.color = 'var(--danger)';
+   failure.style.fontSize = '12px';
+
+   const heading = document.createElement('div');
+   heading.textContent = 'Failed to load catalog.';
+   const detail = document.createElement('small');
+   detail.textContent = err.message;
+   failure.append(heading, detail);
+   $catList.appendChild(failure);
   });
 </script>
 </body>
